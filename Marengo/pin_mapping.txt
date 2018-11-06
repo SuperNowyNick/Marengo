@@ -1,0 +1,43 @@
+Pin mapping for CNC-Shield and STM32F429i-disco1 kit
+
+1   RESET               NRST
+2   3.3V                3V
+3   5V                  5V
+4   N/C                 GND
+5   N/C                 GND
+6   N/C                 N/C
+7   Abort               
+8   Hold                
+9   Resume              
+10  Coolant             
+11  A4                  N/C
+12  A5                  N/C          
+13  RX                  N/C
+14  TX                  N/C
+15  X.STP               PC13
+16  Y.STP               PC12
+17  Z.STP               PC11
+18  X.DIR               PC8
+19  Y.DIR               PC3 <-This one has ADC which might be needed for thermistor
+20  Z.DIR               PB7
+21  ENABLE              PB4
+22  X.LIM               PD2
+23  Y.LIM               PD4
+24  Z.LIM               PA5 <-This one has ADC which might be needed for thermistor
+25  SPINDLE-Enable      PD5
+26  SPINDLE-Direction   PD7
+
+ESP8266
+27  TXD                 PA9 (USART1TX)
+28  RXD                 PA10(USART1RX)
+
+Free IO ports left:
+PE2
+PE3
+PE4
+PE5
+PE6
+PF6 Reserved for ADC3_IN4
+PG2
+PG3
+PG9
