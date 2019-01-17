@@ -12,9 +12,9 @@ void gcode_init()
 
 char *gcode_stripwhitespace(char* line)
 {
-  int i=0;
   if(line==NULL)
     return NULL;
+  int i=0;
   while(line[i]!=10 && line[i]!=13)
   {
     if(isspace(line[i]))

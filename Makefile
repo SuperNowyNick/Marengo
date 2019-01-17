@@ -39,13 +39,13 @@ endif
 #
 
 ARCH     = arm-none-eabi-
-SRCFLAGS = -ggdb -O1
-CFLAGS   =
+SRCFLAGS = -ggdb -O0
+CFLAGS   = 
 CXXFLAGS = -fno-rtti
 ASFLAGS  =
-LDFLAGS  =
+LDFLAGS  = -O0
 
-SRC      = Marengo/console.c Marengo/stepper.c Marengo/gcode.c Marengo/marengo.c
+SRC      = Marengo/console.c Marengo/stepper.c Marengo/gcode.c Marengo/marengo.c Marengo/heater.c
 OBJS     = 
 DEFS     =
 LIBS     =

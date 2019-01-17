@@ -13,6 +13,7 @@
 // Arbitrary rules due to RS274/NGC language compliance
 #define GCODE_MAXLINELENGTH 256 // Maximal line length
 #define GCODE_WORDSTARTINGLETTERS "ABCDFGHIJKLMNPQRSTXYZ" // Allowed first letters of words
+#define GCODE_POSSIBLEWORDS "ABCDFGHIJKLMNPQRSTXYZ"
 #define GCODE_SIGNIFIG 17 // Significant figures in decimal numbers
 #define GCODE_INTDECCRIT 0.0001 // Range (as part of integer) in which a decimal should be to be considered close to given decimal
 //#define GCODE_PARAMPREFIX '#'
@@ -34,11 +35,19 @@
 #define GCODE_MMODALGROUP_6 6 // M6 tool change
 #define GCODE_MMODALGROUP_7 7 // M3, M4, M5 spindle turning
 #define GCODE_MMODALGROUP_8 8 // M7, M8, M9 coolant (special case M7 and M8 may be active at the same time)
-#define GCODE_MMODALGROUP_9 9 // M48, M49 enable/disable feed and speed ovverride switches
+#define GCODE_MMODALGROUP_9 9 // M48, M49 enable/disable feed and speed override switches
 
 #define GCODE_NONMODALGROUP 0 // G4, G10, G28, G30, G53, G92, G92.1, G92.2, G92.3
 
-#define GCODE_POSSIBLEWORDS "ABCDFGHIJKLMNPQRSTXYZ"
+// TODO: Implement error codes in parser
+
+#define GCODE_ERROR_SAMEMODALGROUP 0 // Line contains two words from same modal group
+#define GCODE_ERROR_UNKNOWNWORD 1 // Lie contains unknown word
+#define GCODE_ERROR_GROUP01TGHT 2 // Line contains words from 1 and 0 groups
+
+
+#define GCODE_WARNING_PARAMSREORDER // Same parameter is set twice in line
+
 
 // All the values begin with g?
 

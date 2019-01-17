@@ -23,4 +23,14 @@
 //  TXD                 PA9 (USART1TX)
 //  RXD                 PA10(USART1RX)
 
+#define LINE_EXTRUDERCTRL           PAL_LINE(GPIOE, 2U)
+#define LINE_HEATBEDCTRL            PAL_LINE(GPIOE, 3U)
+#define LINE_EXTRUDERTEMP           PAL_LINE(GPIOF, 6U)
+
+// Intrinsic STM32F429i board peripherals
+
+#define LINE_REDLED                 PAL_LINE(GPIOG, 13U)
+#define LINE_GREENLED               PAL_LINE(GPIOG, 14U)
+#define LINE_USERBUTTON             PAL_LINE(GPIOA, 0U)
+
 #endif /* MARENGO_PIN_MAPPING_H_ */

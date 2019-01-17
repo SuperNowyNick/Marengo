@@ -28,6 +28,15 @@ typedef enum mar_units_t {
 
 int mar_bCoolant;
 
+// These should be set using homing procedure
+int mar_xPos;
+int mar_yPos;
+float mar_feedrate;
+#define MAR_MAX_FEEDRATE
+
+
+
+
 void MarengoInit();
 
 #endif /* MARENGO_MARENGO_H_ */

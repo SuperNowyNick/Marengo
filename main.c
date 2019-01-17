@@ -46,6 +46,7 @@
 #include "Marengo/console.h"
 #include "Marengo/stepper.h"
 #include "Marengo/gcode.h"
+#include "Marengo/heater.h"
 
 // uGFX GINPUT Mouse calibration data
 float calibrationdata[]={
@@ -180,6 +181,29 @@ ccmd_t CmdGCode(int argc, char **argv)
     gcode_parseline(line);
   }
 }
+ccmd_t CmdHeatADC(int argc, char **argv)
+{
+  consPrintf("Extruder thermistor adc val: %d"CONSOLE_NEWLINE_STR, HeaterGetADCValue());
+  return 0;
+}
+ccmd_t CmdHeatVolt(int argc, char **argv)
+{
+  consPrintf("Extruder thermistor volt: %f"CONSOLE_NEWLINE_STR, HeaterGetADCValue());
+  return 0;
+}
+ccmd_t CmdHeatOn(int argc, char **argv)
+{
+  HeaterOn();
+  consPrintf("Extruder heater turned on"CONSOLE_NEWLINE_STR);
+  return 0;
+}
+ccmd_t CmdHeatOff(int argc, char **argv)
+{
+  HeaterOff();
+  consPrintf("Extruder heater turned off"CONSOLE_NEWLINE_STR);
+  return 0;
+}
+
 /*===========================================================================*/
 /* Initialization and main thread.                                           */
 /*===========================================================================*/
@@ -250,6 +274,10 @@ int main(void) {
    {"stpmovsteps", CmdStpmovsteps},
    {"stpdir", CmdStpDir},
    {"gcode", CmdGCode},
+   {"heatadc", CmdHeatADC},
+   {"heatvolt", CmdHeatVolt},
+   {"heaton", CmdHeatOn},
+   {"heatoff", CmdHeatOff},
    {NULL, NULL}
   };
 
@@ -261,6 +289,9 @@ int main(void) {
   /* Initialize stepper driver.*/
   stpInit();
   consPrintf(CONSOLE_NEWLINE_STR"Stepper motor driver initialized"CONSOLE_NEWLINE_STR);
+  HeaterInit();
+  consPrintf(CONSOLE_NEWLINE_STR"Heater driver initialized"CONSOLE_NEWLINE_STR);
+
   /*
    * Normal main() thread activity, spawning shells.
    */

@@ -31,13 +31,14 @@ ESP8266
 27  TXD                 PA9 (USART1TX)
 28  RXD                 PA10(USART1RX)
 
+29  CartridgeHeater     PE2
+30  HeatbedHeater       PE3
+31  ExtruderTempSens    PF6 (ADC3_IN4)
+
 Free IO ports left:
-PE2
-PE3
 PE4
 PE5
 PE6
-PF6 Reserved for ADC3_IN4
 PG2
 PG3
 PG9
