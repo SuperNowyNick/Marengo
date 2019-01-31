@@ -12,45 +12,33 @@
 
 void stpInit(void)
 {
-  gptStart(&GPTD4, &gpt4cfg);
-
+  //gptStart(&GPTD4, &gpt4cfg);
+  consPrintf("Initializing steppers"CONSOLE_NEWLINE_STR);
   for (int i = 0; i < STP_AXES_NUM; i++) {
-    consPrintf("%d  %d"CONSOLE_NEWLINE_STR, i, stpAxes[i].line_stp);
+    consPrintf("Axis %c no: %d line: %d "CONSOLE_NEWLINE_STR, stpAxes[i].designation, i, stpAxes[i].line_stp);
     palSetLineMode(stpAxes[i].line_dir, PAL_MODE_OUTPUT_PUSHPULL);
     palSetLineMode(stpAxes[i].line_stp, PAL_MODE_OUTPUT_PUSHPULL);
+    palSetLineMode(stpAxes[i].line_en, PAL_MODE_OUTPUT_PUSHPULL);
+    palClearLine(stpAxes[i].line_stp);
+    palClearLine(stpAxes[i].line_dir);
+    palSetLine(stpAxes[i].line_en);
   }
-  palSetLineMode(LINE_YSTP, PAL_MODE_OUTPUT_PUSHPULL);
-  palSetLineMode(LINE_YDIR, PAL_MODE_OUTPUT_PUSHPULL);
-  palSetLineMode(LINE_XSTP, PAL_MODE_OUTPUT_PUSHPULL);
-  palSetLineMode(LINE_XDIR, PAL_MODE_OUTPUT_PUSHPULL);
-  palSetLineMode(LINE_ZSTP, PAL_MODE_OUTPUT_PUSHPULL);
-  palSetLineMode(LINE_ZDIR, PAL_MODE_OUTPUT_PUSHPULL);
-  palSetLineMode(LINE_ENABLE, PAL_MODE_OUTPUT_PUSHPULL);
-  palSetLineMode(LINE_SPINDLE_ENABLE, PAL_MODE_OUTPUT_PUSHPULL);
-  palSetLineMode(LINE_SPINDLE_DIRECTION, PAL_MODE_OUTPUT_PUSHPULL);
-  palSetLineMode(LINE_ENABLE, PAL_MODE_OUTPUT_PUSHPULL);
-  palSetLine(LINE_ENABLE);
+  consPrintf("Initializing endstops"CONSOLE_NEWLINE_STR);
+  for (int i = 0; i < STP_ENDSTOPS_NUM; i++) {
+    consPrintf("Endstop on axis %c no: %d line: %d"CONSOLE_NEWLINE_STR, stpEndstops[i].designation, i, stpEndstops[i].line);
+    palSetLineMode(stpEndstops[i].line, PAL_MODE_INPUT_PULLDOWN);
+    palSetLineCallback(stpEndstops[i].line, stpEndstopCallback, (void*)&stpEndstops[i]);
+    stpEndstops[i].active = palReadLine(stpEndstops[i].line);
+  }
 }
 
-/* Enable stepper motor drivers.*/
-void stpEnable(void)
+// Callback from endstop line, arg is
+palcallback_t stpEndstopCallback(void *arg)
 {
-  palClearLine(LINE_ENABLE);
-  stpEnabled = true;
-}
-
-/* Disable stepper motor dirver.*/
-void stpDisable(void)
-{
-  palSetLine(LINE_ENABLE);
-  stpEnabled = false;
-}
-
-/* Toggle stepper motor driver.*/
-void stpToggle(void)
-{
-  palToggleLine(LINE_ENABLE);
-  stpEnabled = !stpEnabled;
+  stpEndstop_t* endstop = arg;
+  endstop->active = palReadLine(endstop->line);
+  palTogglePad(GPIOG, GPIOG_LED4_RED);
+  consPrintf("Endstop %c at end %d is %d"CONSOLE_NEWLINE_STR, endstop->designation, endstop->side, endstop->active);
 }
 
 /* Do stpN steps with delay in us between them on given axis.*/
@@ -62,12 +50,16 @@ int stpMoveAxisSteps(char axis, int stpN, int delay)
   }
   if (i > STP_AXES_NUM)
     return 1;
+  palClearLine(stpAxes[i].line_en);
   for (int n = 0; n < stpN; n++) {
     palToggleLine(stpAxes[i].line_stp);
+    //chThdSleepMilliseconds(delay);
     gptPolledDelay(&GPTD4, delay);
     palToggleLine(stpAxes[i].line_stp);
+    //chThdSleepMilliseconds(delay);
     gptPolledDelay(&GPTD4, delay);
   }
+  palSetLine(stpAxes[i].line_en);
   return 0;
 }
 
@@ -83,12 +75,16 @@ int stpMoveAxisUnits(char axis, float distance, int delay) {
   // Axis found, calculate number of steps
   int stpN = (int)(distance / stpAxes[i].thread_jump * stpAxes[i].steps_per_rev);
   // Do the motion
+  palClearLine(stpAxes[i].line_en);
   for (int n = 0; n < stpN; n++) {
     palToggleLine(stpAxes[i].line_stp);
+    //chThdSleepMilliseconds(delay);
     gptPolledDelay(&GPTD4, delay);
     palToggleLine(stpAxes[i].line_stp);
+    //chThdSleepMilliseconds(delay);
     gptPolledDelay(&GPTD4, delay);
   }
+  palSetLine(stpAxes[i].line_en);
   return 0;
 }
 

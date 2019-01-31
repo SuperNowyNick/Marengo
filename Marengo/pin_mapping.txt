@@ -1,44 +1,107 @@
-Pin mapping for CNC-Shield and STM32F429i-disco1 kit
+Pin mapping for RAMPS 1.4 and STM32F429i-disco1 kit
+(pins described from upper right corner clockwise looking at the back of RAMPS)
 
-1   RESET               NRST
-2   3.3V                3V
-3   5V                  5V
-4   N/C                 GND
-5   N/C                 GND
-6   N/C                 N/C
-7   Abort               
-8   Hold                
-9   Resume              
-10  Coolant             
-11  A4                  N/C
-12  A5                  N/C          
-13  RX                  N/C
-14  TX                  N/C
-15  X.STP               PC13
-16  Y.STP               PC12
-17  Z.STP               PC11
-18  X.DIR               PC8
-19  Y.DIR               PC3 <-This one has ADC which might be needed for thermistor
-20  Z.DIR               PB7
-21  ENABLE              PB4
-22  X.LIM               PD2
-23  Y.LIM               PD4
-24  Z.LIM               PA5 <-This one has ADC which might be needed for thermistor
-25  SPINDLE-Enable      PD5
-26  SPINDLE-Direction   PD7
+N/C                 N/C
+IOREF               N/C
+RESET               NRST
+3.3V                N/C
+5V                  3.3V
+GND                 N/C
+GND                 GND
+VIN                 N/C
+
+A0  X-STEP              PC13
+A1  X-DIR               PE6
+A2  Y-EN                PE4
+A3  A3 (AUX-1 SERIAL)   N/C
+A4  A4 (AUX-1 SERIAL)   N/C
+A5  A5 (AUX-2)          N/C
+A6  Y-STEP              PE5
+A7  Y-DIR               PE3
+
+A8  Z-EN                PE2
+A9  A9 (AUX-2)          N/C
+A10 A10 (AUX-2)         N/C
+A11 A11 (AUX-2)         N/C
+A12 A12 (AUX-2)         N/C
+A13 THERM0              PF6 (ADC3_IN4)
+A14 THERM1              PC3 (ADC?_IN?)
+A15 THERM2              PA5 (ADC?_IN?)
+
+GND                     N/C
+GND                     N/C
+52  SCK  (AUX-3)        N/C
+53  D53  (AUX-3)        N/C
+50  MISO (AUX-3)        N/C
+51  MOSI (AUX-3)        N/C
+48  Z-DIR               PD7
+49  D49  (AUX-3)        N/C
+46  Z-STEP              PD5
+47  D47 (AUX-4)         N/C
+44  D44 (AUX-2)         N/C
+45  D45 (AUX-4)         N/C
+42  D42 (AUX-2)         N/C
+43  D43 (AUX-4)         N/C
+40  D40 (AUX-2)         N/C
+41  D41 (AUX-4)         N/C
+38  X-EN                PD2
+39  D39 (AUX-4)         N/C
+36  E1-STEP             PD4
+37  D37 (AUX-4)         N/C
+34  E1-DIR              PC11
+35  D35 (AUX-4)         N/C
+32  D32 (AUX-4)         N/C
+33  D33 (AUX-4)         N/C
+30  E1-EN               PC12
+31  D31 (AUX-4)         N/C
+28  E0-DIR              N/C
+29  D29 (AUX-4)         N/C
+26  E0-STEP             N/C
+27  D27 (AUX-4)         N/C
+24  E0-EN               N/C
+25  D25 (AUX-4)         N/C
+22  N/C                 N/C
+23  D23 (AUX-4)         N/C
+5V                      N/C
+5V                      N/C
+
+21  SCL                 N/C
+20  SDA                 N/C
+19  Z-MAX
+18  Z-MIN               PG3
+17  D17 (AUX-4)         N/C
+16  D16 (AUX-4)         N/C
+15  Y-MAX               
+14  Y-MIN               PG2
+
+0   RX (AUX-1 A-OUT)    N/C
+1   TX (AUX-1 A-OUT)    N/C
+2   X-MAX               
+3   X-MIN               PB7 
+4   D4 (SER4)           N/C
+5   D5 (SER3)           N/C
+6   D6 (SER2)           N/C
+7   N/C                 N/C
+
+8   D8 (heat_bed)       N/C (MOSFETS not working with 3.3V logic)
+9   D9 (fan mosfet)     N/C (MOSFETS not working with 3.3V logic)
+10  D10 (cart_heat)     N/C (MOSFETS not working with 3.3V logic)
+11  D11 (SER1)          N/C
+12  D12 (PS_ON)         N/C
+13  LED                 N/C
+GND                     N/C
+AREF                    N/C
+
 
 ESP8266
-27  TXD                 PA9 (USART1TX)
-28  RXD                 PA10(USART1RX)
-
-29  CartridgeHeater     PE2
-30  HeatbedHeater       PE3
-31  ExtruderTempSens    PF6 (ADC3_IN4)
+27  TXD                 PA9 (USART1TX) ? Needed for display ?
+28  RXD                 PA10(USART1RX) ? Needed for display ?
 
 Free IO ports left:
-PE4
-PE5
-PE6
-PG2
-PG3
+PC8
 PG9
+PC14 
+PC15
+PB3 (SWO)
+PB2 (BOOT1)
+optional ports: PH0 PH1 if ST-Link clock is turned off

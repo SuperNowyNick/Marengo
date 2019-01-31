@@ -25,7 +25,7 @@ void consPutChar(char c){
   gwinPutChar(MarengoConsoleConfig.Win, c);
 }
 
-int exec(ConsoleCmd *cmds, int argc, char **argv)
+int consExec(ConsoleCmd *cmds, int argc, char **argv)
 {
   if(!strcmp(argv[0], "help")){
     if(argc=1)
@@ -84,7 +84,7 @@ bool consGetLine(char *line, unsigned size){
 }
 
 // Line parsing functions
-int parse_line(char *line, char **tokens)
+int consParseLine(char *line, char **tokens)
 {
   if(!line||line==NULL)
     return 1;
@@ -118,7 +118,7 @@ static THD_FUNCTION(MarengoConsoleThread, arg) {
 
   char line[CONSOLE_MAX_LINE_LENGTH];
 
-  while (true) {
+  while (1) {
     consPrintf(CONSOLE_PROMPT_STR);
     if(consGetLine(line, sizeof(line))){
       consPrintf(CONSOLE_NEWLINE_STR);
@@ -129,13 +129,13 @@ static THD_FUNCTION(MarengoConsoleThread, arg) {
     {
       // line processing goes here!
       char *tokens[CONSOLE_MAX_TOKENS+1];
-      parse_line(line, tokens);
+      consParseLine(line, tokens);
       if(tokens[0]!=NULL){
         int argc=0;
         while(tokens[argc]!=NULL){
           argc++;
         }
-        if(exec(MarengoConsoleConfig.cmds, argc, tokens))
+        if(consExec(MarengoConsoleConfig.cmds, argc, tokens))
           consPrintf("No such function %s"CONSOLE_NEWLINE_STR, tokens[0]);
       }
     }
@@ -144,8 +144,20 @@ static THD_FUNCTION(MarengoConsoleThread, arg) {
   chThdExitS(MSG_OK);
 }
 
-void MarengoStartConsole(void)
+void consStart(void)
 {
-  chThdCreateStatic(waMarengoConsoleThread, sizeof(waMarengoConsoleThread),
+  if(thConsole == NULL)
+    thConsole = chThdCreateStatic(waMarengoConsoleThread, sizeof(waMarengoConsoleThread),
                     NORMALPRIO + 10, MarengoConsoleThread, NULL);
+}
+
+void consExit(void)
+{
+  consPrintf("Exiting console"CONSOLE_NEWLINE_STR);
+  chThdExit(thConsole);
+}
+
+void consInit(void)
+{
+  thConsole = NULL;
 }

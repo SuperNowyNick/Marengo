@@ -23,6 +23,8 @@ else ifeq ($(CHIBIOS_VERSION),16)
   include $(GFXLIB)/tools/gmake_scripts/os_chibios_3.mk
 else ifeq ($(CHIBIOS_VERSION),17)
   include $(GFXLIB)/tools/gmake_scripts/os_chibios_17.mk
+else ifeq ($(CHIBIOS_VERSION),18)
+  include $(GFXLIB)/tools/gmake_scripts/os_chibios_18.mk
 else ifeq ($(CHIBIOS_VERSION),git)
   include $(GFXLIB)/tools/gmake_scripts/os_chibios_git.mk
 else

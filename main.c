@@ -102,24 +102,29 @@ ccmd_t CmdInfo(int argc, char **argv)
 #endif
 #endif
 }
-ccmd_t CmdStpen(int argc, char **argv)
+ccmd_t CmdThreads(int argc, char **argv)
 {
-  stpEnable();
-  consPrintf("Stepper motors enabled"CONSOLE_NEWLINE_STR);
+  static const char *states[] = {CH_STATE_NAMES};
+  thread_t *tp;
+
+  (void)argv;
+  consPrintf("stklimit    stack     addr refs prio     state         name\r\n" CONSOLE_NEWLINE_STR);
+  tp = chRegFirstThread();
+  do {
+#if (CH_DBG_ENABLE_STACK_CHECK == TRUE) || (CH_CFG_USE_DYNAMIC == TRUE)
+    uint32_t stklimit = (uint32_t)tp->wabase;
+#else
+    uint32_t stklimit = 0U;
+#endif
+    consPrintf("%08lx %08lx %08lx %4lu %4lu %9s %12s"CONSOLE_NEWLINE_STR,
+             stklimit, (uint32_t)tp->ctx.sp, (uint32_t)tp,
+             (uint32_t)tp->refs - 1, (uint32_t)tp->prio, states[tp->state],
+             tp->name == NULL ? "" : tp->name);
+    tp = chRegNextThread(tp);
+  } while (tp != NULL);
+  return 0;
 }
-ccmd_t CmdStpdis(int argc, char **argv)
-{
-  stpDisable();
-  consPrintf("Stepper motors disabled"CONSOLE_NEWLINE_STR);
-}
-ccmd_t CmdStptg(int argc, char **argv)
-{
-  stpToggle();
-  consPrintf("Stepper motors ");
-  if (stpEnabled) consPrintf("enabled");
-  else consPrintf("disabled");
-  consPrintf(CONSOLE_NEWLINE_STR);
-}
+
 ccmd_t CmdStpmovsteps(int argc, char **argv)
 {
   if (argc!=4){
@@ -127,7 +132,7 @@ ccmd_t CmdStpmovsteps(int argc, char **argv)
     return 1;
   }
   consPrintf(argv[1]);
-  if (!strspn(argv[1], "XYZA")){
+  if (!strspn(argv[1], "XYZE")){
     consPrintf("No such axis!"CONSOLE_NEWLINE_STR);
     return 1;
   }
@@ -155,7 +160,7 @@ ccmd_t CmdStpDir(int argc, char **argv)
     return 1;
   }
   consPrintf(argv[1]);
-  if (!strspn(argv[1], "XYZA")){
+  if (!strspn(argv[1], "XYZE")){
     consPrintf("No such axis!"CONSOLE_NEWLINE_STR);
     return 1;
   }
@@ -188,7 +193,15 @@ ccmd_t CmdHeatADC(int argc, char **argv)
 }
 ccmd_t CmdHeatVolt(int argc, char **argv)
 {
-  consPrintf("Extruder thermistor volt: %f"CONSOLE_NEWLINE_STR, HeaterGetADCValue());
+  int adc_val = HeaterGetADCValue();
+  int voltageint = adc_val*300/0xFFF/100;
+  int voltagefrac = adc_val*300/0xFFF%100;
+    consPrintf("Extruder thermistor adc val: %d"CONSOLE_NEWLINE_STR, adc_val);
+
+  consPrintf("Extruder thermistor volt: %d.", voltageint);
+  if(voltagefrac<10)
+    consPrintf("0");
+  consPrintf("%d"CONSOLE_NEWLINE_STR, voltagefrac);
   return 0;
 }
 ccmd_t CmdHeatOn(int argc, char **argv)
@@ -203,7 +216,13 @@ ccmd_t CmdHeatOff(int argc, char **argv)
   consPrintf("Extruder heater turned off"CONSOLE_NEWLINE_STR);
   return 0;
 }
-
+ccmd_t CmdEndstops(int argc, char **argv)
+{
+  consPrintf("Endstop 1: %d"CONSOLE_NEWLINE_STR, palReadLine(LINE_XMIN));
+  consPrintf("Endstop 2: %d"CONSOLE_NEWLINE_STR, palReadLine(LINE_YMIN));
+  consPrintf("Endstop 3: %d"CONSOLE_NEWLINE_STR, palReadLine(LINE_ZMIN));
+  return 0;
+}
 /*===========================================================================*/
 /* Initialization and main thread.                                           */
 /*===========================================================================*/
@@ -211,7 +230,54 @@ ccmd_t CmdHeatOff(int argc, char **argv)
 /*
  * Application entry point.
  */
-int main(void) {
+
+/*
+#define SPI_PORT    &SPID5
+#define DC_PORT     GPIOD
+#define DC_PIN      GPIOD_LCD_WRX
+
+static const SPIConfig spi_cfg = {
+    NULL,
+    GPIOC,
+    GPIOC_SPI5_LCD_CS,
+    ((1 << 3) & SPI_CR1_BR) | SPI_CR1_SSM | SPI_CR1_SSI | SPI_CR1_MSTR
+};
+*/
+
+/*
+ * Red LED blinker thread, times are in milliseconds.
+ */
+static THD_WORKING_AREA(waThread1, 128);
+static THD_FUNCTION(Thread1, arg) {
+
+  (void)arg;
+  chRegSetThreadName("blinker1");
+  while (true) {
+    palClearPad(GPIOG, GPIOG_LED4_RED);
+    chThdSleepMilliseconds(500);
+    palSetPad(GPIOG, GPIOG_LED4_RED);
+    chThdSleepMilliseconds(500);
+  }
+}
+
+/*
+ * Green LED blinker thread, times are in milliseconds.
+ */
+static THD_WORKING_AREA(waThread2, 128);
+static THD_FUNCTION(Thread2, arg) {
+
+  (void)arg;
+  chRegSetThreadName("blinker2");
+  while (true) {
+    palClearPad(GPIOG, GPIOG_LED3_GREEN);
+    chThdSleepMilliseconds(250);
+    palSetPad(GPIOG, GPIOG_LED3_GREEN);
+    chThdSleepMilliseconds(250);
+  }
+}
+
+main(void) {
+
 
   /*
    * System initializations.
@@ -220,15 +286,14 @@ int main(void) {
    * - Kernel initialization, the main() function becomes a thread and the
    *   RTOS is active.
    */
-  halInit();
-  chSysInit();
-
+  gfxInit();
+  //halInit();
+  //chSysInit();
   /*
-   * Initializes a serial-over-USB CDC driver.
-   */
+  * Initializes a serial-over-USB CDC driver.
+  */
   sduObjectInit(&SDU1);
   sduStart(&SDU1, &serusbcfg);
-
   /*
    * Activates the USB driver and then the USB bus pull-up on D+.
    * Note, a delay is inserted in order to not have to disconnect the cable
@@ -239,17 +304,19 @@ int main(void) {
   usbStart(serusbcfg.usbp, &usbcfg);
   usbConnectBus(serusbcfg.usbp);
 
+
+
+
   /* Init screen.*/
-  gfxInit();
 
   gfxSleepMilliseconds (10);
-  gdispClear (RGB2COLOR(255,255,255));/* glitches.. */
+  gdispClear (RGB2COLOR(255,0,0));
   gfxSleepMilliseconds (10);
-  gdispClear (RGB2COLOR(255,255,255));  /* glitches.. */
+  gdispClear (RGB2COLOR(0,255,0));
   gfxSleepMilliseconds (10);
-  gdispClear (RGB2COLOR(255,255,255));  /* glitches.. */
-
-  /* Initialize uGFX console.*/
+  gdispClear (RGB2COLOR(0,0,255));
+  gfxSleepMilliseconds (10);
+  gdispClear (RGB2COLOR(0,0,0));
   swidth = gdispGetWidth();
   sheight = gdispGetHeight();
   font = gdispOpenFont("fixed_5x8");
@@ -263,14 +330,10 @@ int main(void) {
       wi.show = TRUE; wi.x = 0; wi.y = bHeight; wi.width = swidth; wi.height = sheight-bHeight-40;
       ghc = gwinConsoleCreate(&gc, &wi);
   }
-
-  /* Console commands.*/
   ConsoleCmd consoleCommands[]=
   {
    {"info", CmdInfo},
-   {"stpen", CmdStpen},
-   {"stpdis", CmdStpdis},
-   {"stptg", CmdStptg},
+   {"threads", CmdThreads},
    {"stpmovsteps", CmdStpmovsteps},
    {"stpdir", CmdStpDir},
    {"gcode", CmdGCode},
@@ -278,32 +341,32 @@ int main(void) {
    {"heatvolt", CmdHeatVolt},
    {"heaton", CmdHeatOn},
    {"heatoff", CmdHeatOff},
+   {"endstops", CmdEndstops},
    {NULL, NULL}
   };
 
+  consInit();
   MarengoConsoleConfig.Stream = &SDU1;
   MarengoConsoleConfig.Win = ghc;
   MarengoConsoleConfig.cmds = consoleCommands;
-  MarengoStartConsole();
 
-  /* Initialize stepper driver.*/
   stpInit();
   consPrintf(CONSOLE_NEWLINE_STR"Stepper motor driver initialized"CONSOLE_NEWLINE_STR);
   HeaterInit();
   consPrintf(CONSOLE_NEWLINE_STR"Heater driver initialized"CONSOLE_NEWLINE_STR);
 
+  // Wait for SDU1 state change to USB_ACTIVE
+  while(SDU1.config->usbp->state != USB_ACTIVE)
+  {
+    chThdSleepMilliseconds(1000);
+  }
+  consStart(); // Start the console
+
+
   /*
    * Normal main() thread activity, spawning shells.
    */
   while (true) {
-
-    //if (SDU1.config->usbp->state == USB_ACTIVE) {
-    // thread_t *shelltp = chThdCreateFromHeap(NULL, SHELL_WA_SIZE,
-    //                                          "shell", NORMALPRIO + 1,
-    //                                          shellThread, (void *)&shell_cfg1);
-    //  chThdWait(shelltp);               /* Waiting termination.             */
-    //}
-
     chThdSleepMilliseconds(1000);
   }
 }

@@ -18,7 +18,7 @@
 int heaterPWMDuty;
 int freq;
 
-void InitHeater(void);
+void HeaterInit(void);
 void HeaterPWMDuty(int duty);
 int HeaterGetExtruderTemp(void);
 int HeaterGetADCValue(void);

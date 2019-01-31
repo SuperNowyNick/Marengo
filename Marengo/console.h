@@ -6,6 +6,8 @@
  */
 
 #include "ch.h"
+#include <chthreads.h>
+#include "hal.h"
 #include "gfx.h"
 #include <stdarg.h>
 #include "chprintf.h"
@@ -34,17 +36,22 @@ struct{
   const ConsoleCmd *cmds;
 } MarengoConsoleConfig;
 
+thread_t* thConsole;
+
 // Functions for console read and print handling
 int consPrintf(const char *fmt, ...);
 void consPutChar(char c);
 bool consGetLine(char *line, unsigned size);
 
 // Internal console functions
-// int exec(ConsoleCmd *cmds, char *cmd, int argc, char **argv)
-// int parse_line(char *line, char **tokens)
+int consExec(ConsoleCmd *cmds, int argc, char **argv);
+int consParseLine(char *line, char **tokens);
 
 // Function for starting console
-void MarengoStartConsole(void);
+void consStart(void);
+
+void consInit(void);
+void consExit(void);
 
 
 #endif /* MARENGO_CONSOLE_H_ */
