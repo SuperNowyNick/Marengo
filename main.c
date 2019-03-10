@@ -101,6 +101,7 @@ ccmd_t CmdInfo(int argc, char **argv)
   consPrintf("Build time:   %s%s%s"CONSOLE_NEWLINE_STR, __DATE__, "-", __TIME__);
 #endif
 #endif
+  return CCMD_SUCCES;
 }
 ccmd_t CmdThreads(int argc, char **argv)
 {
@@ -122,53 +123,64 @@ ccmd_t CmdThreads(int argc, char **argv)
              tp->name == NULL ? "" : tp->name);
     tp = chRegNextThread(tp);
   } while (tp != NULL);
-  return 0;
+  return CCMD_SUCCES;
 }
-
 ccmd_t CmdStpmovsteps(int argc, char **argv)
 {
-  if (argc!=4){
+  if (argc!=5){
     consPrintf("Not enough or too many parameters!"CONSOLE_NEWLINE_STR);
-    return 1;
+    return CCMD_FAIL;
   }
   consPrintf(argv[1]);
   if (!strspn(argv[1], "XYZE")){
     consPrintf("No such axis!"CONSOLE_NEWLINE_STR);
-    return 1;
+    return CCMD_FAIL;
   }
   char axis = *argv[1];
-  int steps, delay;
+  int steps, speed, accel;
   steps = atoi(argv[2]);
-  delay = atoi(argv[3]);
+  speed = atoi(argv[3]);
+  accel = atoi(argv[4]);
   if (steps<=0){
     consPrintf("Steps number must be numerical and greater than zero!"CONSOLE_NEWLINE_STR);
-    return 1;
+    return CCMD_FAIL;
   }
-  if (delay<=0){
-    consPrintf("Delay time must be numerical and greater than zero!"CONSOLE_NEWLINE_STR);
-    return 1;
+  if (speed<=0){
+    consPrintf("Speed must be numerical and greater than zero!"CONSOLE_NEWLINE_STR);
+    return CCMD_FAIL;
   }
-  consPrintf("Moving axis %c with %d steps and %d x2 us delay"CONSOLE_NEWLINE_STR, axis, steps, delay);
-  if (stpMoveAxisSteps(axis, steps, delay))
+  if (accel<=0){
+    consPrintf("Acceleration must be numerical and greater than zero!"CONSOLE_NEWLINE_STR);
+    return CCMD_FAIL;
+  }
+  consPrintf("Moving axis %c with %d steps at %d mm/s speed with acceleration %d mm/s^2"CONSOLE_NEWLINE_STR, axis, steps, speed, accel);
+  if (stpMoveAxisSteps(axis, steps, speed, accel)){
     consPrintf("Error!"CONSOLE_NEWLINE_STR);
-  return 0;
+    return CCMD_FAIL;
+  }
+  else
+    return CCMD_SUCCES;
 }
 ccmd_t CmdStpDir(int argc, char **argv)
 {
   if (argc!=2){
     consPrintf("Not enough or too many parameters!"CONSOLE_NEWLINE_STR);
-    return 1;
+    return CCMD_FAIL;
   }
   consPrintf(argv[1]);
   if (!strspn(argv[1], "XYZE")){
     consPrintf("No such axis!"CONSOLE_NEWLINE_STR);
-    return 1;
+    return CCMD_FAIL;
   }
   char axis = *argv[1];
-  if (stpDirToggle(axis))
+  if (stpDirToggle(axis)){
     consPrintf("Error!"CONSOLE_NEWLINE_STR);
+    return CCMD_FAIL;
+  }
+  else{
   consPrintf("Axis %c direction changed"CONSOLE_NEWLINE_STR, axis);
-  return 0;
+  return CCMD_SUCCES;
+  }
 }
 ccmd_t CmdGCode(int argc, char **argv)
 {
@@ -176,7 +188,7 @@ ccmd_t CmdGCode(int argc, char **argv)
   consGetLine(line, 256);
   if (line[0]!='%'){
     consPrintf("Program must begin with % sign"CONSOLE_NEWLINE_STR);
-    return 0;
+    return CCMD_FAIL;
   }
   for(;;)
   {
@@ -185,43 +197,79 @@ ccmd_t CmdGCode(int argc, char **argv)
       break;
     gcode_parseline(line);
   }
+  return CCMD_SUCCES;
 }
 ccmd_t CmdHeatADC(int argc, char **argv)
 {
   consPrintf("Extruder thermistor adc val: %d"CONSOLE_NEWLINE_STR, HeaterGetADCValue());
-  return 0;
+  return CCMD_SUCCES;
+}
+ccmd_t CmdHeatTemp(int argc, char **argv)
+{
+  consPrintf("Extruder thermistor temp: %d"CONSOLE_NEWLINE_STR, getHeaterTemp(&Heater1, HeaterGetADCValue()));
+  return CCMD_SUCCES;
+}
+ccmd_t CmdHeatPWM(int argc, char **argv)
+{
+  if (argc!=2){
+  consPrintf("Not enough or too many parameters!"CONSOLE_NEWLINE_STR);
+  return CCMD_FAIL;
+}
+  HeaterSetPWM(atoi(argv[1]));
+  consPrintf("Extruder heater PWM set to %d percent"CONSOLE_NEWLINE_STR, atoi(argv[1]));
+  return CCMD_SUCCES;
 }
 ccmd_t CmdHeatVolt(int argc, char **argv)
 {
   int adc_val = HeaterGetADCValue();
-  int voltageint = adc_val*300/0xFFF/100;
-  int voltagefrac = adc_val*300/0xFFF%100;
+  int voltageint = adc_val*330/0xFFF/100;
+  int voltagefrac = adc_val*330/0xFFF%100;
     consPrintf("Extruder thermistor adc val: %d"CONSOLE_NEWLINE_STR, adc_val);
 
   consPrintf("Extruder thermistor volt: %d.", voltageint);
   if(voltagefrac<10)
     consPrintf("0");
   consPrintf("%d"CONSOLE_NEWLINE_STR, voltagefrac);
-  return 0;
+  return CCMD_SUCCES;
 }
 ccmd_t CmdHeatOn(int argc, char **argv)
 {
-  HeaterOn();
+  HeaterOn(&Heater1);
   consPrintf("Extruder heater turned on"CONSOLE_NEWLINE_STR);
-  return 0;
+  return CCMD_SUCCES;
 }
 ccmd_t CmdHeatOff(int argc, char **argv)
 {
-  HeaterOff();
+  HeaterOff(&Heater1);
   consPrintf("Extruder heater turned off"CONSOLE_NEWLINE_STR);
-  return 0;
+  return CCMD_SUCCES;
+}
+ccmd_t CmdHeatIntegral(int arg, char **argv)
+{
+  consPrintf("Total ADC integral: %d"CONSOLE_NEWLINE_STR, intdataHeaterADC(&Heater1));
+  return CCMD_SUCCES;
+}
+ccmd_t CmdHeatDifferentiate(int arg, char **argv)
+{
+  consPrintf("Total ADC differential: %d"CONSOLE_NEWLINE_STR, diffdataHeaterADC(&Heater1));
+  return CCMD_SUCCES;
+}
+ccmd_t CmdHeatSet(int argc, char **argv)
+{
+  if (argc!=2){
+  consPrintf("Not enough or too many parameters!"CONSOLE_NEWLINE_STR);
+  return CCMD_FAIL;
+  }
+  HeaterSetTemp(&Heater1, atoi(argv[1]));
+  consPrintf("Extruder heater temp set to %d degrees"CONSOLE_NEWLINE_STR, atoi(argv[1]));
+  return CCMD_SUCCES;
 }
 ccmd_t CmdEndstops(int argc, char **argv)
 {
   consPrintf("Endstop 1: %d"CONSOLE_NEWLINE_STR, palReadLine(LINE_XMIN));
   consPrintf("Endstop 2: %d"CONSOLE_NEWLINE_STR, palReadLine(LINE_YMIN));
   consPrintf("Endstop 3: %d"CONSOLE_NEWLINE_STR, palReadLine(LINE_ZMIN));
-  return 0;
+  return CCMD_SUCCES;
 }
 /*===========================================================================*/
 /* Initialization and main thread.                                           */
@@ -230,7 +278,6 @@ ccmd_t CmdEndstops(int argc, char **argv)
 /*
  * Application entry point.
  */
-
 /*
 #define SPI_PORT    &SPID5
 #define DC_PORT     GPIOD
@@ -243,7 +290,6 @@ static const SPIConfig spi_cfg = {
     ((1 << 3) & SPI_CR1_BR) | SPI_CR1_SSM | SPI_CR1_SSI | SPI_CR1_MSTR
 };
 */
-
 /*
  * Red LED blinker thread, times are in milliseconds.
  */
@@ -276,7 +322,7 @@ static THD_FUNCTION(Thread2, arg) {
   }
 }
 
-main(void) {
+int main(void) {
 
 
   /*
@@ -332,7 +378,7 @@ main(void) {
   }
   ConsoleCmd consoleCommands[]=
   {
-   {"info", CmdInfo},
+   {(const char*)"info", (ccmd_t)CmdInfo},
    {"threads", CmdThreads},
    {"stpmovsteps", CmdStpmovsteps},
    {"stpdir", CmdStpDir},
@@ -342,13 +388,18 @@ main(void) {
    {"heaton", CmdHeatOn},
    {"heatoff", CmdHeatOff},
    {"endstops", CmdEndstops},
+   {"heattemp", CmdHeatTemp},
+   {"heatpwm", CmdHeatPWM},
+   {"heatint", CmdHeatIntegral},
+   {"heatdiff", CmdHeatDifferentiate},
+   {"heatsettemp", CmdHeatSet},
    {NULL, NULL}
   };
 
   consInit();
-  MarengoConsoleConfig.Stream = &SDU1;
-  MarengoConsoleConfig.Win = ghc;
-  MarengoConsoleConfig.cmds = consoleCommands;
+  consConfig.Stream = (BaseSequentialStream*)&SDU1;
+  consConfig.Win = ghc;
+  consConfig.cmds = consoleCommands;
 
   stpInit();
   consPrintf(CONSOLE_NEWLINE_STR"Stepper motor driver initialized"CONSOLE_NEWLINE_STR);
@@ -369,5 +420,6 @@ main(void) {
   while (true) {
     chThdSleepMilliseconds(1000);
   }
+  return 0;
 }
 /* ---------------------------------------------------------------------- */

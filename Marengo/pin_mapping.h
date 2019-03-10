@@ -30,8 +30,8 @@
 #define LINE_ZMIN                 PAL_LINE(GPIOG, 3U)
 #define LINE_ZMAX                 0
 // MOSFETs and thermoresistors
-#define LINE_EXTRUDERCTRL           PAL_LINE(GPIOB, 4U)
-#define LINE_HEATBEDCTRL            PAL_LINE(GPIOE, 8U)
+#define LINE_EXTRUDERCTRL           PAL_LINE(GPIOB, 4U) // TIM3_CH1
+#define LINE_HEATBEDCTRL            PAL_LINE(GPIOB, 3U) // TIM2_CH2
 
 #define LINE_THERM0                 PAL_LINE(GPIOF, 6U)
 #define LINE_THERM1                 PAL_LINE(GPIOC, 3U)

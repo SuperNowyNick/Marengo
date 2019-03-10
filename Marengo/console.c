@@ -13,16 +13,16 @@ int consPrintf(const char *fmt, ...){
   int formatted_bytes;
 
   va_start(ap, fmt);
-  formatted_bytes = chvprintf(MarengoConsoleConfig.Stream, fmt, ap);
-  gwinvPrintf(MarengoConsoleConfig.Win, fmt, ap); // This function has been added to gwin_console.c
+  formatted_bytes = chvprintf(consConfig.Stream, fmt, ap);
+  gwinvPrintf(consConfig.Win, fmt, ap); // This function has been added to gwin_console.c
   va_end(ap);
 
   return formatted_bytes;
 }
 
 void consPutChar(char c){
-  streamPut(MarengoConsoleConfig.Stream, c);
-  gwinPutChar(MarengoConsoleConfig.Win, c);
+  streamPut(consConfig.Stream, c);
+  gwinPutChar(consConfig.Win, c);
 }
 
 int consExec(ConsoleCmd *cmds, int argc, char **argv)
@@ -54,11 +54,22 @@ bool consGetLine(char *line, unsigned size){
   char *p = line;
   while(true){
     char c;
-    if (streamRead(MarengoConsoleConfig.Stream, (uint8_t *)&c, 1) == 0)
+    if (streamRead(consConfig.Stream, (uint8_t *)&c, 1) == 0)
       return true;
     if (c == 4) {
       consPrintf("^D");
       return true;
+    }
+    if((c=="[")) // escape characters
+    {
+      if (streamRead(consConfig.Stream, (uint8_t *)&c, 1) == 0)
+        return true;
+      if(c=="A") // arrow up
+        // should move to beggining of the line
+        consPrintf("Stara linia"CONSOLE_NEWLINE_STR);
+      if(c=="B") // arrow down
+        consPrintf("Nowa linia"CONSOLE_NEWLINE_STR);
+        // should move to beggining of the line
     }
     if ((c == 8) || (c == 127)) { // backspace or delete?
       if (p != line) {
@@ -109,8 +120,8 @@ int consParseLine(char *line, char **tokens)
 
 /* ---------------------------------------------------------------------- */
 // CONSOLE PRINTING THREAD
-static THD_WORKING_AREA(waMarengoConsoleThread, 2048);
-static THD_FUNCTION(MarengoConsoleThread, arg) {
+static THD_WORKING_AREA(waConsoleThread, 2048);
+static THD_FUNCTION(ConsoleThread, arg) {
   (void)arg;
   chRegSetThreadName("MarengoConsole");
 
@@ -135,7 +146,7 @@ static THD_FUNCTION(MarengoConsoleThread, arg) {
         while(tokens[argc]!=NULL){
           argc++;
         }
-        if(consExec(MarengoConsoleConfig.cmds, argc, tokens))
+        if(consExec(consConfig.cmds, argc, tokens))
           consPrintf("No such function %s"CONSOLE_NEWLINE_STR, tokens[0]);
       }
     }
@@ -146,18 +157,19 @@ static THD_FUNCTION(MarengoConsoleThread, arg) {
 
 void consStart(void)
 {
-  if(thConsole == NULL)
-    thConsole = chThdCreateStatic(waMarengoConsoleThread, sizeof(waMarengoConsoleThread),
-                    NORMALPRIO + 10, MarengoConsoleThread, NULL);
+  if(consThread == NULL)
+    consThread = chThdCreateStatic(waConsoleThread, sizeof(waConsoleThread),
+                    NORMALPRIO + 10, ConsoleThread, NULL);
 }
 
-void consExit(void)
+void consDeinit(void)
 {
   consPrintf("Exiting console"CONSOLE_NEWLINE_STR);
-  chThdExit(thConsole);
+  chThdTerminate(consThread);
 }
 
 void consInit(void)
 {
-  thConsole = NULL;
+  //consHistory = calloc(CONSOLE_HISTORY_SIZE, sizeof(char)*CONSOLE_MAX_LINE_LENGTH);
+  consThread = NULL;
 }

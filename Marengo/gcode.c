@@ -3,7 +3,7 @@
 #include <string.h>
 #include "console.h"
 
-void gcode_init()
+void gcode_init(void)
 {
   g_bSeenStart=0;
   g_linenumber=0;
@@ -84,7 +84,7 @@ int gcode_parseline(char* line)
   //check for "/" blockend character
   for(int i=0; i<GCODE_MAXLINELENGTH; i++)
   {
-    if(line[i]='/'){
+    if(line[i]=='/'){
       line[i]='\0';
       break;
     }
@@ -94,7 +94,7 @@ int gcode_parseline(char* line)
   int bFoundN=0;
   for(int i=0; i<GCODE_MAXLINELENGTH; i++)
   {
-    if(line[i]='N'){
+    if(line[i]=='N'){
       if(!bFoundN){
         bFoundN=1;
         int j=i+1;
@@ -133,12 +133,14 @@ int gcode_parseline(char* line)
   // perform commands
   gcode_parsecomments(comments);
   // set parameters
+  return 0;
 }
 
 
 float parse_expression(char* expr)
 {
   //figure out calculating expression with recursive calling of this function
+  return 0.0;
 }
 
 float atof(char* string)

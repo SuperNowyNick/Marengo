@@ -22,6 +22,11 @@
 #define CONSOLE_NEWLINE_STR "\r\n"
 #define CONSOLE_PROMPT_STR ">"
 
+#define CCMD_SUCCES (ccmd_t)0
+#define CCMD_FAIL (ccmd_t)1
+
+#define CONSOLE_HISTORY_SIZE 16
+
 typedef int (*ccmd_t)(int argc, char *argv[]);
 
 typedef struct {
@@ -34,9 +39,12 @@ struct{
   BaseSequentialStream *Stream; // ChibiOS stream acting as input
   GHandle Win; // uGFX handle to window acting as console
   const ConsoleCmd *cmds;
-} MarengoConsoleConfig;
+} consConfig;
 
-thread_t* thConsole;
+thread_t* consThread;
+
+char consHistory[CONSOLE_HISTORY_SIZE][CONSOLE_MAX_LINE_LENGTH];
+int consHistoryStart;
 
 // Functions for console read and print handling
 int consPrintf(const char *fmt, ...);
@@ -51,7 +59,7 @@ int consParseLine(char *line, char **tokens);
 void consStart(void);
 
 void consInit(void);
-void consExit(void);
+void consDeinit(void);
 
 
 #endif /* MARENGO_CONSOLE_H_ */

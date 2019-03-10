@@ -57,7 +57,7 @@ int g_linenumber;
 
 // Add table of parameters
 
-void gcode_init();
+void gcode_init(void);
 int gcode_parseline(char* line);
 char *gcode_stripwhitespace(char* line);
 int gcode_stripcomments(char* line, char* comments);
