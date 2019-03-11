@@ -11,7 +11,7 @@
 static const ADCConversionGroup adccg =
     {
        FALSE, // use circular buffer
-       HEAT_ADC_CHAN_NUM, // Number of channels
+       4, // Number of channels
        NULL, // callback func
        NULL, // callback err func
        0, // CR1 REG
@@ -24,9 +24,6 @@ static const ADCConversionGroup adccg =
        0, // SQR2 REG
        ADC_SQR3_SQ1_N(ADC_CHANNEL_IN4), // SQR3 REG
     };
-
-static adcsample_t heatADCSampleBuf[HEAT_ADC_BUF_DEPTH * HEAT_ADC_CHAN_NUM];
-
 static PWMConfig PWMConf2 = {10000, 1000, NULL, {
                                                   {PWM_OUTPUT_DISABLED, NULL},
                                                   {PWM_OUTPUT_ACTIVE_HIGH, NULL},
@@ -40,43 +37,54 @@ static PWMConfig PWMConf3 = {10000, 1000, NULL, {
                                                   {PWM_OUTPUT_DISABLED, NULL}
                                                   },0, 0};
 
-heater_t* createHeater(heater_t *heater, char* name, int maxTemp, int minTemp, \
-                      ioline_t ctrlLine, ioline_t adcLine, ADCDriver *adcd, \
-                      int adcChanNum, int lookupTableSize, int* lookupTable)
+heater_t* heaterCreate(heater_t *heater, char* name, int maxTemp, int minTemp, \
+                      ioline_t ctrlLine, PWMDriver *pwmd, int pwmChanNum, \
+                      PWMConfig *pwmConf, \
+                      ioline_t adcLine, ADCDriver *adcd, int adcChanNum, \
+                      ADCConversionGroup *adcg, \
+                      int lookupTableSize, int* lookupTable)
 {
+  palSetLineMode(adcLine, PAL_MODE_INPUT_ANALOG);
+  palSetLineMode(ctrlLine, PAL_MODE_ALTERNATE(2));
+  adcStart(adcd, NULL);
+  pwmStart(pwmd, pwmConf);
   heater->name = name;
   heater->maxTemp = maxTemp;
   heater->minTemp = minTemp;
-  heater->adcLine = adcLine;
   heater->ctrlLine = ctrlLine;
+  heater->pwmd = pwmd;
+  heater->pwmChanNum = pwmChanNum;
+  heater->adcLine = adcLine;
   heater->adcd = adcd;
   heater->adcChanNum = adcChanNum;
+  heater->adcg = adcg;
   heater->adcDataStart = 0;
   heater->adcDataEnd = 0;
   heater->adcDataSize = 0;
   heater->lookupTableSize = lookupTableSize;
   heater->lookupTable = lookupTable;
+  heaterOff(heater);
   return heater;
 }
-int intdataHeaterADC(heater_t *heater)
+int heaterIntegrateADC(heater_t *heater)
 {
   int integral=0;
   for(int i=0; i<heater->adcDataSize; i++)
   {
-    integral+=heater->adcDataBuf[(heater->adcDataStart+i)%16];
+    integral+=heater->adcDataBuf[(heater->adcDataStart+i)%HEATER_ADC_DATA_BUF_DEPTH];
   }
   return integral;
 }
-int intdataHeaterTemp(heater_t *heater)
+int heaterIntegrateTemp(heater_t *heater)
 {
   int integral=0;
   for(int i=0; i<heater->adcDataSize; i++)
   {
-    integral+=getHeaterTemp(&Heater1, heater->adcDataBuf[(heater->adcDataStart+i)%16]);
+    integral+=heaterADCToTemp(&Heater1, heater->adcDataBuf[(heater->adcDataStart+i)%HEATER_ADC_DATA_BUF_DEPTH]);
   }
   return integral;
 }
-int diffdataHeaterADC(heater_t *heater)
+int heaterDifferentiateADC(heater_t *heater)
 {
   int diff;
   if(heater->adcDataSize>1)
@@ -85,45 +93,52 @@ int diffdataHeaterADC(heater_t *heater)
       diff=0;
   return diff;
 }
-int popdataHeaterADC(heater_t *heater)
+int heaterPopADC(heater_t *heater)
 {
-  int pop=heater->adcDataBuf[(heater->adcDataEnd-1)%16];
+  int pop=heater->adcDataBuf[(heater->adcDataEnd-1)%HEATER_ADC_DATA_BUF_DEPTH];
   heater->adcDataSize-=1;
-  heater->adcDataEnd=(heater->adcDataStart+heater->adcDataSize)%16;
+  heater->adcDataEnd=(heater->adcDataStart+heater->adcDataSize)%HEATER_ADC_DATA_BUF_DEPTH;
   return pop;
 }
-void pushdataHeaterADC(heater_t *heater, int adcData)
+void heaterPushADC(heater_t *heater, int adcData)
 {
-  heater->adcDataBuf[(heater->adcDataStart+heater->adcDataSize)%16]=adcData;
-  if(heater->adcDataSize==16)
+  heater->adcDataBuf[(heater->adcDataStart+heater->adcDataSize)%HEATER_ADC_DATA_BUF_DEPTH]=adcData;
+  if(heater->adcDataSize==HEATER_ADC_DATA_BUF_DEPTH)
   {
-    heater->adcDataStart=(heater->adcDataStart+1)%16;
-    heater->adcDataEnd=(heater->adcDataEnd+1)%16;
+    heater->adcDataStart=(heater->adcDataStart+1)%HEATER_ADC_DATA_BUF_DEPTH;
+    heater->adcDataEnd=(heater->adcDataEnd+1)%HEATER_ADC_DATA_BUF_DEPTH;
   }
   else
   {
     heater->adcDataSize+=1;
-    heater->adcDataEnd=(heater->adcDataSize+heater->adcDataStart-1)%16;
+    heater->adcDataEnd=(heater->adcDataSize+heater->adcDataStart-1)%HEATER_ADC_DATA_BUF_DEPTH;
   }
 }
-int readHeaterADC(heater_t *heater)
+int heaterReadADC(heater_t *heater)
 {
-  adcConvert(&ADCD3, &adccg, heatADCSampleBuf, HEAT_ADC_BUF_DEPTH);
-
+  adcConvert(heater->adcd, heater->adcg, heater->adcSampleBuf, HEATER_ADC_SAMPLE_BUF_DEPTH);
+  heaterPushADC(heater, heater->adcSampleBuf[0]);
+  return heater->adcSampleBuf[0];
 }
-int getHeaterAdc(heater_t *heater)
+int heaterGetADC(heater_t *heater)
 {
   return heater->adcDataBuf[heater->adcDataEnd];
 }
-int getHeaterLastTemp(heater_t *heater)
+int heaterGetTemp(heater_t *heater)
 {
-  return getHeaterTemp(heater, getHeaterAdc(heater));
+  return heaterADCToTemp(heater, heaterGetADC(heater));
 }
-
-int getHeaterTemp(heater_t *heater, int adc)
+int heaterSetTemp(heater_t *heater, int temp)
+{
+  if(temp<heater->minTemp)
+    temp=heater->minTemp;
+  if(temp>heater->maxTemp)
+    temp=heater->maxTemp;
+  heater->temp = temp;
+}
+int heaterADCToTemp(heater_t *heater, int adc)
 {
   int i=1;
-  //int adc=getHeaterAdc(heater);
   while(i<heater->lookupTableSize)
   {
     if(*(heater->lookupTable+2*i)>adc)
@@ -143,81 +158,59 @@ static THD_FUNCTION(Heater1Thread, arg) {
   chRegSetThreadName("Heater1PID");
   while(1){
     // Get current ADC value
-    adcConvert(&ADCD3, &adccg, heatADCSampleBuf, HEAT_ADC_BUF_DEPTH);
-    pushdataHeaterADC(&Heater1, heatADCSampleBuf[0]);
-    int difference = Heater1.temp-getHeaterLastTemp(&Heater1);
-    int integral = Heater1.temp-intdataHeaterTemp(&Heater1)/16;
+    heaterReadADC(&Heater1);
+    int error = Heater1.temp-heaterGetTemp(&Heater1);
+    int interror = Heater1.temp-heaterIntegrateTemp(&Heater1)/Heater1.adcDataSize;
     int gain = 5;
     int intgain = 5;
-    int pwm= difference*gain+integral*intgain;
+    int pwm= error*gain+interror*intgain;
     if(pwm>100)
           pwm=100;
     if(pwm<0)
       pwm=0;
     //consPrintf("PID:Temp:%dC,Err:%dC,IntErr:%dC,setPWM:%d"CONSOLE_NEWLINE_STR, getHeaterLastTemp(&Heater1), difference, integral, pwm);
-    HeaterSetPWM(pwm);
+    heaterSetPWM(&Heater1, pwm);
     chThdSleepMilliseconds(1000);
   }
 }
 
-void HeaterInit(void)
+heater_t* heaterDestroy(heater_t *heater)
+{
+  heaterOff(heater);
+  adcStopConversion(heater->adcd);
+  adcStop(heater->adcd);
+}
+void heaterSetPWM(heater_t *heater, int pwm)
+{
+  pwmEnableChannel(heater->pwmd, heater->pwmChanNum, PWM_PERCENTAGE_TO_WIDTH(heater->pwmd, pwm*100));
+}
+void heaterOn(heater_t *heater)
+{
+  pwmEnableChannel(heater->pwmd, heater->pwmChanNum, PWM_PERCENTAGE_TO_WIDTH(heater->pwmd, 10000));
+}
+void heaterOff(heater_t *heater)
+{
+  pwmDisableChannel(heater->pwmd, heater->pwmChanNum);
+}
+
+void heaterInit(void)
 {
   // setup input and output
   adcInit();
   pwmInit();
-  palSetLineMode(LINE_THERM0, PAL_MODE_INPUT_ANALOG);
-  palSetLineMode(LINE_EXTRUDERCTRL, PAL_MODE_ALTERNATE(2));
-  adcStart(&ADCD3, NULL);
-  pwmStart(&PWMD2, &PWMConf2);
-  pwmStart(&PWMD3, &PWMConf3);
-  createHeater(&Heater1, "Extruder", 285, 5, LINE_THERM0, LINE_EXTRUDERCTRL,\
-               &ADCD3, ADC_CHANNEL_IN4, 22, &Heater1LookupTable);
-  HeaterOff(&Heater1);
+  heaterCreate(&Heater1, "Extruder", 285, 5, LINE_EXTRUDERCTRL, &PWMD3, 0, \
+               &PWMConf3, LINE_THERM0,\
+               &ADCD3, ADC_CHANNEL_IN4, &adccg, 22, &Heater1LookupTable);
+  heaterOff(&Heater1);
   if(heatThread == NULL)
     heatThread = chThdCreateStatic(waHeater1Thread, sizeof(waHeater1Thread),
                       NORMALPRIO + 10, Heater1Thread, NULL);
 }
-
-void HeaterCleanUp(void)
+void heaterClenup(void)
 {
-  HeaterOff(&Heater1);
-  adcStopConversion(&ADCD3);
-  adcStop(&ADCD3);
+  heaterDestroy(&Heater1);
 }
 
-
-int HeaterGetADCValue(void)
-{
-  adcConvert(&ADCD3, &adccg, heatADCSampleBuf, HEAT_ADC_BUF_DEPTH);
-  return heatADCSampleBuf[0];
-
-}
-
-float HeaterGetADCVoltage(void)
-{
-  adcConvert(&ADCD3, &adccg, heatADCSampleBuf, HEAT_ADC_BUF_DEPTH);
-  return (3.3*heatADCSampleBuf[0])/0xFFF;
-}
-void HeaterSetPWM(int pwm)
-{
-  pwmEnableChannel(&PWMD3, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD3, pwm*100));
-}
-void HeaterOn(heater_t *heater)
-{
-  pwmEnableChannel(&PWMD3, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD3, 10000));
-}
-void HeaterOff(heater_t *heater)
-{
-  pwmDisableChannel(&PWMD3, 0);
-}
-int HeaterSetTemp(heater_t *heater, int temp)
-{
-  if(temp<heater->minTemp)
-    temp=heater->minTemp;
-  if(temp>heater->maxTemp)
-    temp=heater->maxTemp;
-  heater->temp = temp;
-}
 
 
 

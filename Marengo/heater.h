@@ -13,12 +13,10 @@
 #include "hal.h"
 #include "pin_mapping.h"
 
-#define HEAT_ADC_CHAN_NUM 1
-#define HEAT_ADC_BUF_DEPTH 1
-int heatFreq;
-int heatPWMDuty;
-int heatSetTemp;
-int heatPrevADC;
+#define HEATER_ADC_SAMPLE_CHAN_NUM 1
+#define HEATER_ADC_SAMPLE_BUF_DEPTH 1
+#define HEATER_ADC_DATA_BUF_DEPTH 16
+
 
 typedef struct {
   char* name;
@@ -26,10 +24,14 @@ typedef struct {
   int minTemp;
   int temp;
   ioline_t ctrlLine;
+  PWMDriver* pwmd;
+  int pwmChanNum;
   ioline_t adcLine;
   ADCDriver* adcd;
   int adcChanNum;
-  int adcDataBuf[16];
+  ADCConversionGroup *adcg;
+  adcsample_t adcSampleBuf[HEATER_ADC_SAMPLE_BUF_DEPTH * HEATER_ADC_SAMPLE_CHAN_NUM];
+  int adcDataBuf[HEATER_ADC_DATA_BUF_DEPTH];
   int adcDataStart;
   int adcDataEnd;
   int adcDataSize;
@@ -37,9 +39,33 @@ typedef struct {
   int* lookupTable;
 } heater_t;
 
-heater_t* createHeater(heater_t *heater, char* name, int maxTemp, int minTemp, \
-                      ioline_t ctrlLine, ioline_t adcLine, ADCDriver *adcd, \
-                      int adcChanNum, int lookupTableSize, int* lookupTable);
+heater_t* heaterCreate(heater_t *heater, char* name, int maxTemp, int minTemp, \
+                      ioline_t ctrlLine, PWMDriver *pwmd, int pwmChanNum, \
+                      PWMConfig *pwmConf, \
+                      ioline_t adcLine, ADCDriver *adcd, int adcChanNum, \
+                      ADCConversionGroup *adcg, \
+                      int lookupTableSize, int* lookupTable);
+heater_t* heaterDestroy(heater_t *heater);
+int heaterADCToTemp(heater_t *heater, int adc);
+int heaterSetTemp(heater_t *heater, int temp);
+int heaterGetADC(heater_t *heater);
+int heaterReadADC(heater_t *heater);
+int heaterPopADC(heater_t *heater);
+void heaterPushADC(heater_t *heater, int adcData);
+int heaterIntegrateADC(heater_t *heater);
+int heaterDifferentiateADC(heater_t *heater);
+void heaterOn(heater_t *heater);
+void heaterOff(heater_t *heater);
+void heaterSetPWM(heater_t *heater, int pwm);
+int heaterSetTemp(heater_t *heater, int temp);
+int heaterGetTemp(heater_t *heater);
+int heaterIntegrateTemp(heater_t *heater);
+
+void heaterInit(void);
+void heaterClenup(void);
+
+thread_t* heatThread;
+
 
 static Heater1LookupTable[44] = {70,300,
                                  94,280,
@@ -66,27 +92,6 @@ static Heater1LookupTable[44] = {70,300,
 
 heater_t Heater1;
 heater_t Heater2;
-
-heater_t* createHeater(heater_t *heater, char* name, int maxTemp, int minTemp, \
-                      ioline_t ctrlLine, ioline_t adcLine, ADCDriver *adcd, \
-                      int adcChanNum, int lookupTableSize, int* lookupTable);
-int getHeaterTemp(heater_t *heater, int adc);
-int setHeaterTemp(heater_t *heater, int temp);
-int getHeaterADC(heater_t *heater);
-int readHeaterADC(heater_t *heater);
-int getHeaterADCIntegral(heater_t *heater);
-int getHeaterADCDerivative(heater_t *heater);
-void HeaterOn(heater_t *heater);
-void HeaterOff(heater_t *heater);
-void HeaterSetPWM(int pwm);
-int HeaterSetTemp(heater_t *heater, int temp);
-
-thread_t* heatThread;
-
-void HeaterInit(void);
-int HeaterGetExtruderTemp(void);
-int HeaterGetADCValue(void);
-void CleanUpHeater(void);
 
 
 #endif /* MARENGO_HEATER_H_ */

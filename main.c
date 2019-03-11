@@ -199,59 +199,9 @@ ccmd_t CmdGCode(int argc, char **argv)
   }
   return CCMD_SUCCES;
 }
-ccmd_t CmdHeatADC(int argc, char **argv)
-{
-  consPrintf("Extruder thermistor adc val: %d"CONSOLE_NEWLINE_STR, HeaterGetADCValue());
-  return CCMD_SUCCES;
-}
 ccmd_t CmdHeatTemp(int argc, char **argv)
 {
-  consPrintf("Extruder thermistor temp: %d"CONSOLE_NEWLINE_STR, getHeaterTemp(&Heater1, HeaterGetADCValue()));
-  return CCMD_SUCCES;
-}
-ccmd_t CmdHeatPWM(int argc, char **argv)
-{
-  if (argc!=2){
-  consPrintf("Not enough or too many parameters!"CONSOLE_NEWLINE_STR);
-  return CCMD_FAIL;
-}
-  HeaterSetPWM(atoi(argv[1]));
-  consPrintf("Extruder heater PWM set to %d percent"CONSOLE_NEWLINE_STR, atoi(argv[1]));
-  return CCMD_SUCCES;
-}
-ccmd_t CmdHeatVolt(int argc, char **argv)
-{
-  int adc_val = HeaterGetADCValue();
-  int voltageint = adc_val*330/0xFFF/100;
-  int voltagefrac = adc_val*330/0xFFF%100;
-    consPrintf("Extruder thermistor adc val: %d"CONSOLE_NEWLINE_STR, adc_val);
-
-  consPrintf("Extruder thermistor volt: %d.", voltageint);
-  if(voltagefrac<10)
-    consPrintf("0");
-  consPrintf("%d"CONSOLE_NEWLINE_STR, voltagefrac);
-  return CCMD_SUCCES;
-}
-ccmd_t CmdHeatOn(int argc, char **argv)
-{
-  HeaterOn(&Heater1);
-  consPrintf("Extruder heater turned on"CONSOLE_NEWLINE_STR);
-  return CCMD_SUCCES;
-}
-ccmd_t CmdHeatOff(int argc, char **argv)
-{
-  HeaterOff(&Heater1);
-  consPrintf("Extruder heater turned off"CONSOLE_NEWLINE_STR);
-  return CCMD_SUCCES;
-}
-ccmd_t CmdHeatIntegral(int arg, char **argv)
-{
-  consPrintf("Total ADC integral: %d"CONSOLE_NEWLINE_STR, intdataHeaterADC(&Heater1));
-  return CCMD_SUCCES;
-}
-ccmd_t CmdHeatDifferentiate(int arg, char **argv)
-{
-  consPrintf("Total ADC differential: %d"CONSOLE_NEWLINE_STR, diffdataHeaterADC(&Heater1));
+  consPrintf("Extruder thermistor temp: %d"CONSOLE_NEWLINE_STR, heaterGetTemp(&Heater1));
   return CCMD_SUCCES;
 }
 ccmd_t CmdHeatSet(int argc, char **argv)
@@ -260,7 +210,7 @@ ccmd_t CmdHeatSet(int argc, char **argv)
   consPrintf("Not enough or too many parameters!"CONSOLE_NEWLINE_STR);
   return CCMD_FAIL;
   }
-  HeaterSetTemp(&Heater1, atoi(argv[1]));
+  heaterSetTemp(&Heater1, atoi(argv[1]));
   consPrintf("Extruder heater temp set to %d degrees"CONSOLE_NEWLINE_STR, atoi(argv[1]));
   return CCMD_SUCCES;
 }
@@ -383,15 +333,8 @@ int main(void) {
    {"stpmovsteps", CmdStpmovsteps},
    {"stpdir", CmdStpDir},
    {"gcode", CmdGCode},
-   {"heatadc", CmdHeatADC},
-   {"heatvolt", CmdHeatVolt},
-   {"heaton", CmdHeatOn},
-   {"heatoff", CmdHeatOff},
    {"endstops", CmdEndstops},
    {"heattemp", CmdHeatTemp},
-   {"heatpwm", CmdHeatPWM},
-   {"heatint", CmdHeatIntegral},
-   {"heatdiff", CmdHeatDifferentiate},
    {"heatsettemp", CmdHeatSet},
    {NULL, NULL}
   };
@@ -403,7 +346,7 @@ int main(void) {
 
   stpInit();
   consPrintf(CONSOLE_NEWLINE_STR"Stepper motor driver initialized"CONSOLE_NEWLINE_STR);
-  HeaterInit();
+  heaterInit();
   consPrintf(CONSOLE_NEWLINE_STR"Heater driver initialized"CONSOLE_NEWLINE_STR);
 
   // Wait for SDU1 state change to USB_ACTIVE
