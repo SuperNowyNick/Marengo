@@ -8,10 +8,8 @@
 #include "console.h"
 #include <string.h>
 
-static printfcount =0;
 
 int consPrintf(const char *fmt, ...){
-  printfcount+=1;
   va_list ap;
   int formatted_bytes;
 
