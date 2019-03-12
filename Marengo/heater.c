@@ -11,7 +11,7 @@
 static const ADCConversionGroup adccg =
     {
        FALSE, // use circular buffer
-       4, // Number of channels
+       1, // Number of channels
        NULL, // callback func
        NULL, // callback err func
        0, // CR1 REG
@@ -168,7 +168,7 @@ static THD_FUNCTION(Heater1Thread, arg) {
           pwm=100;
     if(pwm<0)
       pwm=0;
-    //consPrintf("PID:Temp:%dC,Err:%dC,IntErr:%dC,setPWM:%d"CONSOLE_NEWLINE_STR, getHeaterLastTemp(&Heater1), difference, integral, pwm);
+    //consPrintf("PID:Temp:%dC,Err:%dC,IntErr:%dC,setPWM:%d"CONSOLE_NEWLINE_STR, heaterGetTemp(&Heater1), error, interror, pwm);
     heaterSetPWM(&Heater1, pwm);
     chThdSleepMilliseconds(1000);
   }

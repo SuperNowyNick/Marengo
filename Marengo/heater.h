@@ -31,6 +31,7 @@ typedef struct {
   int adcChanNum;
   ADCConversionGroup *adcg;
   adcsample_t adcSampleBuf[HEATER_ADC_SAMPLE_BUF_DEPTH * HEATER_ADC_SAMPLE_CHAN_NUM];
+  int space;
   int adcDataBuf[HEATER_ADC_DATA_BUF_DEPTH];
   int adcDataStart;
   int adcDataEnd;
