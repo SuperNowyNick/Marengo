@@ -64,6 +64,7 @@ int stpMoveAxisSteps(char axis, int stpN, int speed, int accel)
   for (int n = 0; n < accel_steps; n++)
   {
     palToggleLine(stpAxes[i].line_stp);
+    // TODO: Change to thread delay? If guaranteed to be finite
     gptPolledDelay(&GPTD4, delay);
     delay = sqrt(2*(n+1)*1000000000000/accel)-sqrt(2*n*1000000000000/accel);
   }

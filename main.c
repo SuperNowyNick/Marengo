@@ -329,13 +329,13 @@ int main(void) {
   ConsoleCmd consoleCommands[]=
   {
    {(const char*)"info", (ccmd_t)CmdInfo},
-   {"threads", CmdThreads},
-   {"stpmovsteps", CmdStpmovsteps},
-   {"stpdir", CmdStpDir},
-   {"gcode", CmdGCode},
-   {"endstops", CmdEndstops},
-   {"heattemp", CmdHeatTemp},
-   {"heatsettemp", CmdHeatSet},
+   {"threads", CmdThreads, "Displays threads informationn"},
+   {"stpmovsteps", CmdStpmovsteps, "Moves stepper motor. Args: axis, number fo steps, speed, acceleration"},
+   {"stpdir", CmdStpDir, "Changes direction of movement for stepper motor. Args: axis"},
+   {"gcode", CmdGCode, "Opens up gcode interpreter"},
+   {"endstops", CmdEndstops, "Displays endstops status"},
+   {"heattemp", CmdHeatTemp, "Displays heater temperature"},
+   {"heatsettemp", CmdHeatSet, "Set heater temperature. Args: temp in celsius"},
    {NULL, NULL}
   };
 

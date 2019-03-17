@@ -16,6 +16,13 @@
 #define CLOCK_FREQ 10500000 // No less than MAX_SPEED*STEPS_PER_MM
 #define MAX_SPEED 200 // in mm per s
 
+#define STP_CMD_MODE_LINE 0
+#define STP_CMD_MODE_ARC 1
+
+#define STP_STATE_STOPPED 0
+#define STP_STATE_RUNNING 1
+#define STP_STATE_WAITING 2
+
 typedef struct {
   char designation; // axis designation
   int steps_per_rev; // steps per revolution
@@ -35,6 +42,31 @@ typedef struct {
   char active; // state of given endstop
   ioline_t line; // Endstop ioline
 } stpEndstop_t;
+
+typedef struct {
+  int x;
+  int y;
+  int z;
+  /*
+  int a;
+  int b;
+  int c;
+  int u;
+  int v;
+  int w;
+   */
+  int stpE;
+} stpCoord_t;
+
+
+
+typedef struct {
+  char type;
+  stpCoord_t startCoord;
+  stpCoord_t endCoord;
+  int feedrate;
+} stpCmd_t;
+
 
 // Clock controlling steppers
 static const GPTConfig gpt4cfg = {
@@ -69,6 +101,11 @@ int stpDirToggle(char dsgn);
 int stpMoveAxisSteps(char axis, int stpN, int speed, int accel);
 int stpMoveAxisUnits(char axis, float distance, int delay);
 
+int stpMMtoSTPS(stpAxis_t *axis, int mm);
+int stpSTPStoMM(stpAxis_t *axis, int mm);
+
+int stpMoveLinear(stpCoord_t start, stpCoord_t end, int feedrate);
+int stpMoveArc(stpCoord_t start, stpCoord_t end, stpCoord_t center, int feedrate);
 
 
 #endif /* MARENGO_STEPPER_H_ */

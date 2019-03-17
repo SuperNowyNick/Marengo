@@ -27,11 +27,16 @@
 
 #define CONSOLE_HISTORY_SIZE 16
 
+#define CONSOLE_STATUS_STOPPED
+#define CONSOLE_STATUS_READY
+#define CONSOLE_STATUS_WORKING
+
 typedef int (*ccmd_t)(int argc, char *argv[]);
 
 typedef struct {
   const char    *ccmd_name; // Command name
   ccmd_t        ccmd_function; // Command function
+  const char    *ccmd_helpmsg;
   // TODO: Add help strings to each function
 } ConsoleCmd;
 
@@ -43,8 +48,13 @@ struct{
 
 thread_t* consThread;
 
-char consHistory[CONSOLE_HISTORY_SIZE][CONSOLE_MAX_LINE_LENGTH];
+char *consHistory[CONSOLE_HISTORY_SIZE];
 int consHistoryStart;
+int consHistorySize;
+char* consHistoryGetLast();
+char* consHistoryGet(int n);
+void consHistoryPut(char *line);
+
 
 // Functions for console read and print handling
 int consPrintf(const char *fmt, ...);
@@ -54,6 +64,7 @@ bool consGetLine(char *line, unsigned size);
 // Internal console functions
 int consExec(ConsoleCmd *cmds, int argc, char **argv);
 int consParseLine(char *line, char **tokens);
+void consShowHelp(int argc, char **argv);
 
 // Function for starting console
 void consStart(void);
