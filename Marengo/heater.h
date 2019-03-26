@@ -24,6 +24,7 @@ typedef struct {
   int minTemp;
   int temp;
   ioline_t ctrlLine;
+  int ctrLineAltFncNum;
   PWMDriver* pwmd;
   int pwmChanNum;
   ioline_t adcLine;
@@ -31,7 +32,8 @@ typedef struct {
   int adcChanNum;
   ADCConversionGroup *adcg;
   adcsample_t adcSampleBuf[HEATER_ADC_SAMPLE_BUF_DEPTH * HEATER_ADC_SAMPLE_CHAN_NUM];
-  int space;
+  int pidPropGain;
+  int pidIntGain;
   int adcDataBuf[HEATER_ADC_DATA_BUF_DEPTH];
   int adcDataStart;
   int adcDataEnd;
@@ -41,10 +43,10 @@ typedef struct {
 } heater_t;
 
 heater_t* heaterCreate(heater_t *heater, char* name, int maxTemp, int minTemp, \
-                      ioline_t ctrlLine, PWMDriver *pwmd, int pwmChanNum, \
-                      PWMConfig *pwmConf, \
+                      ioline_t ctrlLine, int ctrlLineAltFncNum, \
+                      PWMDriver *pwmd, int pwmChanNum, PWMConfig *pwmConf, \
                       ioline_t adcLine, ADCDriver *adcd, int adcChanNum, \
-                      ADCConversionGroup *adcg, \
+                      ADCConversionGroup *adcg, int pidPropGain, int pidIntGain,\
                       int lookupTableSize, int* lookupTable);
 heater_t* heaterDestroy(heater_t *heater);
 int heaterADCToTemp(heater_t *heater, int adc);

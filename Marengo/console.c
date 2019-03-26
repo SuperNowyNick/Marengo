@@ -13,7 +13,7 @@
 // ex command execution
 // for purpose of proper printf handling from other threads
 
-// TODO: Add console history and scrolling feature?
+// TODO: Add console scrolling feature?
 
 int consPrintf(const char *fmt, ...){
   va_list ap;

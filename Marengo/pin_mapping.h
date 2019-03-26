@@ -33,9 +33,9 @@
 #define LINE_EXTRUDERCTRL           PAL_LINE(GPIOB, 4U) // TIM3_CH1
 #define LINE_HEATBEDCTRL            PAL_LINE(GPIOB, 3U) // TIM2_CH2
 
-#define LINE_THERM0                 PAL_LINE(GPIOF, 6U)
-#define LINE_THERM1                 PAL_LINE(GPIOC, 3U)
-#define LINE_THERM2                 PAL_LINE(GPIOA, 5U)
+#define LINE_THERM0                 PAL_LINE(GPIOF, 6U) // ADC3IN4
+#define LINE_THERM1                 PAL_LINE(GPIOC, 3U) // ADC123IN13
+#define LINE_THERM2                 PAL_LINE(GPIOA, 5U) // ADC12IN5
 
 // Intrinsic STM32F429i board peripherals
 
