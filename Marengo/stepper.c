@@ -7,6 +7,7 @@
 
 #include "stepper.h"
 #include "console.h" // Temporarily for debug reasons
+#include <stdarg.h>
 
 /* Initialize stepper motor driver.*/
 
@@ -121,3 +122,59 @@ int stpDirToggle(char dsgn) {
   palToggleLine(stpAxes[i].line_dir);
   return 0;
 }
+
+int max(int argc, ...)
+{
+  int max,a;
+  va_list ptr;
+  va_start(ptr, argc);
+  max = va_arg(ptr,int);
+  for(int i=0; i< argc; i++)
+  {
+    a = va_arg(ptr,int);
+    max = a>max ? a : max;
+  }
+  va_end(ptr);
+  return max;
+}
+
+int stpMoveLine(int stpX, int stpY, int stpZ, int stpE, int delay)
+{
+  // Set required axes drivers
+  if(stpX != 0) palClearLine(stpAxes[1].line_en);
+  if(stpY != 0) palClearLine(stpAxes[0].line_en);
+  if(stpZ != 0) palClearLine(stpAxes[2].line_en);
+  if(stpE != 0) palClearLine(stpAxes[3].line_en);
+  // Set directions
+  if(stpX<0) palClearLine(stpAxes[1].line_dir);
+  else palSetLine(stpAxes[1].line_dir);
+  if(stpY<0) palClearLine(stpAxes[0].line_dir);
+  else palSetLine(stpAxes[0].line_dir);
+  if(stpZ<0) palClearLine(stpAxes[2].line_dir);
+  else palSetLine(stpAxes[2].line_dir);
+  if(stpE<0) palClearLine(stpAxes[3].line_dir);
+  else palSetLine(stpAxes[3].line_dir);
+  // Calc absolute number of steps in each dir
+  int dx = stpAxes[1].steps_per_mm*abs(stpX);
+  int dy = stpAxes[0].steps_per_mm*abs(stpY);
+  int dz = stpAxes[2].steps_per_mm*abs(stpZ);
+  int de = stpAxes[3].steps_per_mm*abs(stpE);
+  int curX=0,curY=0,curZ=0,curE=0;
+  // Calc maximal number of steps
+  int dm = max(4, dx,dy,dz,de);
+  stpX=stpY=stpZ=stpE=dm/2;
+  int i = dm;
+  for(;;gptPolledDelay(&GPTD4, delay))
+  {
+    if(--i==0) break;
+    stpX-=dx; if(stpX<0) { stpX+=dm; palToggleLine(stpAxes[1].line_stp); }
+    stpY-=dy; if(stpY<0) { stpY+=dm; palToggleLine(stpAxes[0].line_stp); }
+    stpZ-=dz; if(stpZ<0) { stpZ+=dm; palToggleLine(stpAxes[2].line_stp); }
+    stpE-=de; if(stpE<0) { stpE+=dm; palToggleLine(stpAxes[3].line_stp); }
+  }
+  palSetLine(stpAxes[0].line_en);
+  palSetLine(stpAxes[1].line_en);
+  palSetLine(stpAxes[2].line_en);
+  palSetLine(stpAxes[3].line_en);
+}
+

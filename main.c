@@ -221,6 +221,21 @@ ccmd_t CmdEndstops(int argc, char **argv)
   consPrintf("Endstop 3: %d"CONSOLE_NEWLINE_STR, palReadLine(LINE_ZMIN));
   return CCMD_SUCCES;
 }
+ccmd_t CmdMoveLine(int argc, char **argv)
+{
+  if(argc!=6){
+    consPrintf("Not enough or too many parameters!"CONSOLE_NEWLINE_STR);
+    return CCMD_FAIL;
+    }
+  int x = atoi(argv[1]);
+  int y = atoi(argv[2]);
+  int z = atoi(argv[3]);
+  int e = atoi(argv[4]);
+  int d = atoi(argv[5]);
+  consPrintf("Moving in line with to x:%d,y:%d,z:%d,e:%d with delay:%d"CONSOLE_NEWLINE_STR, x,y,z,e,d);
+  stpMoveLine(x,y,z,e,d);
+  return CCMD_SUCCES;
+}
 /*===========================================================================*/
 /* Initialization and main thread.                                           */
 /*===========================================================================*/
@@ -336,6 +351,7 @@ int main(void) {
    {"endstops", CmdEndstops, "Displays endstops status"},
    {"heattemp", CmdHeatTemp, "Displays heater temperature"},
    {"heatsettemp", CmdHeatSet, "Set heater temperature. Args: temp in celsius"},
+   {"stpmovline", CmdMoveLine, "Move to coords x,y,z,e, with delay e"},
    {NULL, NULL}
   };
 

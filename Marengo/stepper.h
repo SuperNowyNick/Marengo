@@ -78,8 +78,8 @@ static const GPTConfig gpt4cfg = {
 // Stepper motors
 #define STP_AXES_NUM 4
 static stpAxis_t stpAxes[STP_AXES_NUM] = {
-{ 'Y', 400, 1, 2, 1, 400, TRUE, LINE_YSTP, LINE_YDIR, LINE_YEN},
-{ 'X', 800, 1, 2, 1, 200, TRUE, LINE_XSTP, LINE_XDIR, LINE_XEN},
+{ 'Y', 400, 1, 2, 1, 200, TRUE, LINE_YSTP, LINE_YDIR, LINE_YEN},
+{ 'X', 800, 1, 2, 1, 400, TRUE, LINE_XSTP, LINE_XDIR, LINE_XEN},
 { 'Z', 400 ,1, 2, 1, 200, TRUE, LINE_ZSTP, LINE_ZDIR, LINE_ZEN},
 { 'E', 800, 1, 1, 1, 105, FALSE, LINE_E1STP, LINE_E1DIR, LINE_E1EN}
 };
@@ -105,6 +105,7 @@ int stpMMtoSTPS(stpAxis_t *axis, int mm);
 int stpSTPStoMM(stpAxis_t *axis, int mm);
 
 int stpMoveLinear(stpCoord_t start, stpCoord_t end, int feedrate);
+int stpMoveLine(int stpX, int stpY, int stpZ, int stpE, int delay);
 int stpMoveArc(stpCoord_t start, stpCoord_t end, stpCoord_t center, int feedrate);
 
 
