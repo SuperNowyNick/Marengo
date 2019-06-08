@@ -47,6 +47,7 @@
 #include "Marengo/stepper.h"
 #include "Marengo/gcode.h"
 #include "Marengo/heater.h"
+#include "Marengo/gui.h"
 
 // uGFX GINPUT Mouse calibration data
 float calibrationdata[]={
@@ -201,16 +202,36 @@ ccmd_t CmdGCode(int argc, char **argv)
 }
 ccmd_t CmdHeatTemp(int argc, char **argv)
 {
-  consPrintf("Extruder thermistor temp: %d"CONSOLE_NEWLINE_STR, heaterGetTemp(&Heater1));
-  return CCMD_SUCCES;
-}
-ccmd_t CmdHeatSet(int argc, char **argv)
-{
   if (argc!=2){
   consPrintf("Not enough or too many parameters!"CONSOLE_NEWLINE_STR);
   return CCMD_FAIL;
   }
-  heaterSetTemp(&Heater1, atoi(argv[1]));
+  if(atoi(argv[1])==1)
+    consPrintf("Extruder thermistor temp: %d"CONSOLE_NEWLINE_STR, heaterGetTemp(&Heater1));
+  else if(atoi(argv[1])==2)
+    consPrintf("Extruder thermistor temp: %d"CONSOLE_NEWLINE_STR, heaterGetTemp(&Heater2));
+  else {
+    consPrintf("No such heater!"CONSOLE_NEWLINE_STR);
+    return CCMD_FAIL;
+  }
+  return CCMD_SUCCES;
+}
+ccmd_t CmdHeatSet(int argc, char **argv)
+{
+  if (argc!=3){
+  consPrintf("Not enough or too many parameters!"CONSOLE_NEWLINE_STR);
+  return CCMD_FAIL;
+  }
+  heater_t heat;
+  if(atoi(argv[1])==1)
+    heat=Heater1;
+  else if(atoi(argv[1])==2)
+    heat=Heater2;
+  else {
+    consPrintf("No such heater!"CONSOLE_NEWLINE_STR);
+    return CCMD_FAIL;
+  }
+  heaterSetTemp(&Heater1, atoi(argv[2]));
   consPrintf("Extruder heater temp set to %d degrees"CONSOLE_NEWLINE_STR, atoi(argv[1]));
   return CCMD_SUCCES;
 }
@@ -315,32 +336,8 @@ int main(void) {
   usbStart(serusbcfg.usbp, &usbcfg);
   usbConnectBus(serusbcfg.usbp);
 
+  guiInit();
 
-
-
-  /* Init screen.*/
-
-  gfxSleepMilliseconds (10);
-  gdispClear (RGB2COLOR(255,0,0));
-  gfxSleepMilliseconds (10);
-  gdispClear (RGB2COLOR(0,255,0));
-  gfxSleepMilliseconds (10);
-  gdispClear (RGB2COLOR(0,0,255));
-  gfxSleepMilliseconds (10);
-  gdispClear (RGB2COLOR(0,0,0));
-  swidth = gdispGetWidth();
-  sheight = gdispGetHeight();
-  font = gdispOpenFont("fixed_5x8");
-  gwinSetDefaultFont(font);
-  bHeight = gdispGetFontMetric(font, fontHeight)+4; // title bar height
-  gdispFillStringBox(0, 0, swidth, bHeight, "Marengo", font, Red, White, justifyCenter); // Display title bar
-  // Create our main display writing window
-  {
-      GWindowInit             wi;
-      gwinClearInit(&wi);
-      wi.show = TRUE; wi.x = 0; wi.y = bHeight; wi.width = swidth; wi.height = sheight-bHeight-40;
-      ghc = gwinConsoleCreate(&gc, &wi);
-  }
   ConsoleCmd consoleCommands[]=
   {
    {(const char*)"info", (ccmd_t)CmdInfo},
@@ -349,21 +346,23 @@ int main(void) {
    {"stpdir", CmdStpDir, "Changes direction of movement for stepper motor. Args: axis"},
    {"gcode", CmdGCode, "Opens up gcode interpreter"},
    {"endstops", CmdEndstops, "Displays endstops status"},
-   {"heattemp", CmdHeatTemp, "Displays heater temperature"},
-   {"heatsettemp", CmdHeatSet, "Set heater temperature. Args: temp in celsius"},
+   {"heattemp", CmdHeatTemp, "Displays heater temperature. Args heater num"},
+   {"heatsettemp", CmdHeatSet, "Set heater temperature. Args: heater num, temp in celsius"},
    {"stpmovline", CmdMoveLine, "Move to coords x,y,z,e, with delay e"},
    {NULL, NULL}
   };
 
   consInit();
   consConfig.Stream = (BaseSequentialStream*)&SDU1;
-  consConfig.Win = ghc;
+  consConfig.Win = guiConsoleGetWinHandle();
   consConfig.cmds = consoleCommands;
 
   stpInit();
   consPrintf(CONSOLE_NEWLINE_STR"Stepper motor driver initialized"CONSOLE_NEWLINE_STR);
   heaterInit();
   consPrintf(CONSOLE_NEWLINE_STR"Heater driver initialized"CONSOLE_NEWLINE_STR);
+
+  guiStart();
 
   // Wait for SDU1 state change to USB_ACTIVE
   while(SDU1.config->usbp->state != USB_ACTIVE)
@@ -378,6 +377,7 @@ int main(void) {
    */
   while (true) {
     chThdSleepMilliseconds(1000);
+    guiProgressBarIncrement();
   }
   return 0;
 }

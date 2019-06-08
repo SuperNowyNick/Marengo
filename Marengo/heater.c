@@ -81,6 +81,7 @@ heater_t* heaterCreate(heater_t *heater, char* name, int maxTemp, int minTemp, \
   heater->adcDataSize = 0;
   heater->lookupTableSize = lookupTableSize;
   heater->lookupTable = lookupTable;
+  heater->temp = minTemp;
   heaterOff(heater);
   return heater;
 }
@@ -145,6 +146,20 @@ int heaterGetADC(heater_t *heater)
 int heaterGetTemp(heater_t *heater)
 {
   return heaterADCToTemp(heater, heaterGetADC(heater));
+}
+int heaterIncDesiredTemp(heater_t *heater)
+{
+  if(heater->temp<heater->maxTemp)
+    heater->temp++;
+}
+int heaterDecDesiredTemp(heater_t *heater)
+{
+  if(heater->temp>heater->minTemp)
+    heater->temp--;
+}
+int heaterGetDesiredTemp(heater_t *heater)
+{
+  return heater->temp;
 }
 int heaterSetTemp(heater_t *heater, int temp)
 {
@@ -234,10 +249,12 @@ void heaterInit(void)
   if(heatThread == NULL)
     heatThread = chThdCreateStatic(waHeaterThread, sizeof(waHeaterThread),
                       NORMALPRIO + 10, HeaterThread, NULL);
+  heaterBInit = TRUE;
 }
 void heaterClenup(void)
 {
   heaterDestroy(&Heater1);
+  heaterDestroy(&Heater2);
 }
 
 

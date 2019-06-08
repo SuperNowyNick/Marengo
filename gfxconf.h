@@ -11,9 +11,26 @@
 
 /* The operating system to use. One of these must be defined - preferably in your Makefile */
 #define GFX_USE_OS_CHIBIOS              TRUE
-//#define GFX_USE_OS_WIN32              FALSE
+//#define GFX_USE_OS_WIN32              TRUE
 //#define GFX_USE_OS_LINUX              FALSE
 //#define GFX_USE_OS_OSX                FALSE
+
+// Options that (should where relevant) apply to all operating systems
+//    #define GFX_NO_INLINE                            FALSE
+    #define GFX_COMPILER                             GFX_COMPILER_GCC
+    #define GFX_SHOW_COMPILER                        TRUE
+    #define GFX_CPU                                  GFX_CPU_CORTEX_M4
+//    #define GFX_CPU_NO_ALIGNMENT_FAULTS              FALSE
+    #define GFX_CPU_ENDIAN                           GFX_CPU_ENDIAN_LITTLE
+//    #define GFX_OS_HEAP_SIZE                         0
+//    #define GFX_OS_NO_INIT                           FALSE
+//    #define GFX_OS_INIT_NO_WARNING                   FALSE
+//    #define GFX_OS_PRE_INIT_FUNCTION                 myHardwareInitRoutine
+//    #define GFX_OS_EXTRA_INIT_FUNCTION               myOSInitRoutine
+//    #define GFX_OS_EXTRA_DEINIT_FUNCTION             myOSDeInitRoutine
+//    #define GFX_OS_CALL_UGFXMAIN                     FALSE
+//    #define GFX_OS_UGFXMAIN_STACKSIZE                0
+//    #define GFX_EMULATE_MALLOC                       FALSE
 
 /* GFX sub-systems to turn on */
 #define GFX_USE_GDISP                   TRUE
@@ -24,20 +41,21 @@
 #define GDISP_NEED_TEXT                 TRUE
 #define GDISP_NEED_CIRCLE               TRUE
 #define GDISP_NEED_ELLIPSE              TRUE
-#define GDISP_NEED_ARC                  FALSE
-#define GDISP_NEED_SCROLL               FALSE
+#define GDISP_NEED_ARC                  TRUE
+#define GDISP_NEED_SCROLL               TRUE
 #define GDISP_NEED_PIXELREAD            FALSE
-#define GDISP_NEED_CONTROL              FALSE
+#define GDISP_NEED_CONTROL              TRUE
 #define GDISP_NEED_MULTITHREAD          TRUE
 #define GDISP_NEED_ASYNC                FALSE
 #define GDISP_NEED_MSGAPI               FALSE
+#define GDISP_NEED_IMAGE                TRUE
 
 /* Builtin Fonts */
 #define GDISP_INCLUDE_FONT_SMALL        FALSE
 #define GDISP_INCLUDE_FONT_LARGER       FALSE
 #define GDISP_INCLUDE_FONT_UI1          TRUE
-#define GDISP_INCLUDE_FONT_UI2          FALSE
-#define GDISP_INCLUDE_FONT_LARGENUMBERS FALSE
+#define GDISP_INCLUDE_FONT_UI2          TRUE
+#define GDISP_INCLUDE_FONT_LARGENUMBERS TRUE
 #define GDISP_INCLUDE_FONT_FIXED_5X8    TRUE
 
 ///////////////////////////////////////////////////////////////////////////
@@ -117,12 +135,12 @@
 //        #define GWIN_SLIDER_DEAD_BAND                5
 //        #define GWIN_SLIDER_TOGGLE_INC               20
 //    #define GWIN_NEED_CHECKBOX                       FALSE
-//    #define GWIN_NEED_IMAGE                          FALSE
+    #define GWIN_NEED_IMAGE                          TRUE
 //        #define GWIN_NEED_IMAGE_ANIMATION            FALSE
 //    #define GWIN_NEED_RADIO                          FALSE
 //    #define GWIN_NEED_LIST                           FALSE
 //        #define GWIN_NEED_LIST_IMAGES                FALSE
-//    #define GWIN_NEED_PROGRESSBAR                    FALSE
+    #define GWIN_NEED_PROGRESSBAR                    TRUE
 //        #define GWIN_PROGRESSBAR_AUTO                FALSE
 //    #define GWIN_NEED_KEYBOARD                       FALSE
 //        #define GWIN_KEYBOARD_DEFAULT_LAYOUT         VirtualKeyboard_English1
@@ -131,8 +149,8 @@
 //    #define GWIN_FLAT_STYLING                        FALSE
 //    #define GWIN_WIDGET_TAGS                         FALSE
 
-//#define GWIN_NEED_CONTAINERS                         FALSE
-//    #define GWIN_NEED_CONTAINER                      FALSE
+#define GWIN_NEED_CONTAINERS                         TRUE
+    #define GWIN_NEED_CONTAINER                      TRUE
 //    #define GWIN_NEED_FRAME                          FALSE
 //    #define GWIN_NEED_TABSET                         FALSE
 //        #define GWIN_TABSET_TABHEIGHT                18

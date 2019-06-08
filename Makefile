@@ -45,7 +45,7 @@ CXXFLAGS = -fno-rtti
 ASFLAGS  =
 LDFLAGS  = -O0
 
-SRC      = Marengo/console.c Marengo/stepper.c Marengo/gcode.c Marengo/marengo.c Marengo/heater.c
+SRC      = Marengo/console.c Marengo/stepper.c Marengo/gcode.c Marengo/marengo.c Marengo/heater.c Marengo/gui.c
 OBJS     = 
 DEFS     =
 LIBS     =

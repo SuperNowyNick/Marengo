@@ -62,6 +62,9 @@ void heaterOff(heater_t *heater);
 void heaterSetPWM(heater_t *heater, int pwm);
 int heaterSetTemp(heater_t *heater, int temp);
 int heaterGetTemp(heater_t *heater);
+int heaterIncDesiredTemp(heater_t *heater);
+int heaterDecDesiredTemp(heater_t *heater);
+int heaterGetDesiredTemp(heater_t *heater);
 int heaterIntegrateTemp(heater_t *heater);
 
 void heaterInit(void);
@@ -95,6 +98,8 @@ static Heater1LookupTable[44] = {70,300,
 
 heater_t Heater1;
 heater_t Heater2;
+
+char heaterBInit;
 
 
 #endif /* MARENGO_HEATER_H_ */
