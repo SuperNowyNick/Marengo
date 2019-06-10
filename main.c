@@ -222,17 +222,21 @@ ccmd_t CmdHeatSet(int argc, char **argv)
   consPrintf("Not enough or too many parameters!"CONSOLE_NEWLINE_STR);
   return CCMD_FAIL;
   }
-  heater_t heat;
-  if(atoi(argv[1])==1)
-    heat=Heater1;
-  else if(atoi(argv[1])==2)
-    heat=Heater2;
+  heater_t *heat;
+  if(atoi(argv[1])==1){
+    heat=&Heater1;
+    consPrintf("Extruder ");
+  }
+  else if(atoi(argv[1])==2){
+    heat=&Heater2;
+    consPrintf("Heatbed ");
+  }
   else {
     consPrintf("No such heater!"CONSOLE_NEWLINE_STR);
     return CCMD_FAIL;
   }
-  heaterSetTemp(&Heater1, atoi(argv[2]));
-  consPrintf("Extruder heater temp set to %d degrees"CONSOLE_NEWLINE_STR, atoi(argv[1]));
+  heaterSetTemp(heat, atoi(argv[2]));
+  consPrintf("heater temp set to %d degrees"CONSOLE_NEWLINE_STR, atoi(argv[1]));
   return CCMD_SUCCES;
 }
 ccmd_t CmdEndstops(int argc, char **argv)
@@ -244,7 +248,7 @@ ccmd_t CmdEndstops(int argc, char **argv)
 }
 ccmd_t CmdMoveLine(int argc, char **argv)
 {
-  if(argc!=6){
+  if(argc<5){
     consPrintf("Not enough or too many parameters!"CONSOLE_NEWLINE_STR);
     return CCMD_FAIL;
     }
@@ -252,9 +256,14 @@ ccmd_t CmdMoveLine(int argc, char **argv)
   int y = atoi(argv[2]);
   int z = atoi(argv[3]);
   int e = atoi(argv[4]);
-  int d = atoi(argv[5]);
-  consPrintf("Moving in line with to x:%d,y:%d,z:%d,e:%d with delay:%d"CONSOLE_NEWLINE_STR, x,y,z,e,d);
-  stpMoveLine(x,y,z,e,d);
+  if(argc>5)
+    stpFeedrate = atoi(argv[5]);
+  if(argc==7)
+    stpAccel = atoi(argv[6]);
+  consPrintf("Moving in line with to x:%d,y:%d,z:%d,e:%d"CONSOLE_NEWLINE_STR, x,y,z,e);
+  //stpMoveLine(x,y,z,e,d);
+  stpCoord_t ruch = (stpCoord_t){x,y,z,e};
+  stpMoveLinear(ruch);
   return CCMD_SUCCES;
 }
 /*===========================================================================*/

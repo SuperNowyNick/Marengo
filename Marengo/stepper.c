@@ -14,6 +14,7 @@
 void stpInit(void)
 {
   gptStart(&GPTD4, &gpt4cfg);
+  GPTD4.clock;
   consPrintf("Initializing steppers"CONSOLE_NEWLINE_STR);
   for (int i = 0; i < STP_AXES_NUM; i++) {
     consPrintf("Axis %c no: %d line: %d "CONSOLE_NEWLINE_STR, stpAxes[i].designation, i, stpAxes[i].line_stp);
@@ -31,6 +32,31 @@ void stpInit(void)
     palSetLineCallback(stpEndstops[i].line, stpEndstopCallback, (void*)&stpEndstops[i]);
     stpEndstops[i].active = palReadLine(stpEndstops[i].line);
   }
+
+  // TODO: Perform homing operation with endstop check
+  //set current coords and speed to 0,0,0,0
+  stpSetHome();
+  stpCurrentSpeed.x=0;
+  stpCurrentSpeed.y=0;
+  stpCurrentSpeed.z=0;
+  stpCurrentSpeed.stpE=0;
+  // set mode to absolute
+  stpModeInc=0;
+  stpFeedrate=100;
+  stpAccel=100;
+}
+
+void stpSetHome(void)
+{
+  stpCurrentAbsPos.x=0;
+  stpCurrentAbsPos.y=0;
+  stpCurrentAbsPos.z=0;
+  stpCurrentAbsPos.stpE=0;
+}
+
+stpCoord_t stpGetCurrentPos(void)
+{
+  return stpCurrentAbsPos;
 }
 
 // Callback from endstop line, arg is
@@ -129,7 +155,7 @@ int max(int argc, ...)
   va_list ptr;
   va_start(ptr, argc);
   max = va_arg(ptr,int);
-  for(int i=0; i< argc; i++)
+  for(int i=1; i< argc; i++)
   {
     a = va_arg(ptr,int);
     max = a>max ? a : max;
@@ -159,8 +185,7 @@ int stpMoveLine(int stpX, int stpY, int stpZ, int stpE, int delay)
   int dy = stpAxes[0].steps_per_mm*abs(stpY);
   int dz = stpAxes[2].steps_per_mm*abs(stpZ);
   int de = stpAxes[3].steps_per_mm*abs(stpE);
-  int curX=0,curY=0,curZ=0,curE=0;
-  // Calc maximal number of steps
+  // Calculate maximal number of steps
   int dm = max(4, dx,dy,dz,de);
   stpX=stpY=stpZ=stpE=dm/2;
   int i = dm;
@@ -178,3 +203,149 @@ int stpMoveLine(int stpX, int stpY, int stpZ, int stpE, int delay)
   palSetLine(stpAxes[3].line_en);
 }
 
+stpCoord_t stpCoordAdd(stpCoord_t a, stpCoord_t b)
+{
+  stpCoord_t ret;
+  ret.x=a.x+b.x;
+  ret.y=a.y+b.y;
+  ret.z=a.z+b.z;
+  ret.stpE=a.stpE+b.stpE;
+  return ret;
+}
+stpCoord_t stpCoordSub(stpCoord_t a, stpCoord_t b)
+{
+  stpCoord_t ret;
+  ret.x=a.x-b.x;
+  ret.y=a.y-b.y;
+  ret.z=a.z-b.z;
+  ret.stpE=a.stpE-b.stpE;
+  return ret;
+}
+
+
+int stpCoordAbs(stpCoord_t coord)
+{
+  return sqrt(coord.x*coord.x+coord.y*coord.y+coord.z*coord.z);
+}
+
+int stpMoveLinear(stpCoord_t end)
+{
+  stpCoord_t mov;
+  //if(!stpModeInc)
+  //  mov = stpCoordSub(end, stpCurrentAbsPos);
+  //else mov=end;
+  mov=end;
+  // set stepper drivers
+  if(mov.x!=0) palClearLine(stpAxes[1].line_en);
+  if(mov.y!=0) palClearLine(stpAxes[0].line_en);
+  if(mov.z!=0) palClearLine(stpAxes[2].line_en);
+  if(mov.stpE!=0) palClearLine(stpAxes[3].line_en);
+  // set directions
+  int xdir=1, ydir=1, zdir=1, edir=1;
+  if(mov.x<0) {
+    palClearLine(stpAxes[1].line_dir);
+    xdir=-1;
+  }
+  else palSetLine(stpAxes[1].line_dir);
+  if(mov.y<0) {
+    palClearLine(stpAxes[0].line_dir);
+    ydir=-1;
+  }
+  else palSetLine(stpAxes[0].line_dir);
+  if(mov.z<0) {
+    palClearLine(stpAxes[2].line_dir);
+    zdir=-1;
+  }
+  else palSetLine(stpAxes[2].line_dir);
+  if(mov.stpE<0) {
+    palClearLine(stpAxes[3].line_dir);
+    edir=-1;
+  }
+  else palSetLine(stpAxes[3].line_dir);
+  // calculate number of steps per axis
+  int dx = stpAxes[1].steps_per_mm*abs(mov.x);
+  int dy = stpAxes[0].steps_per_mm*abs(mov.y);
+  int dz = stpAxes[2].steps_per_mm*abs(mov.z);
+  int de = stpAxes[3].steps_per_mm*abs(mov.stpE);
+  stpCoord_t totalsteps = (stpCoord_t){dx,dy,dz,de};
+  int curX=0,curY=0,curZ=0,curE=0;
+  // Calc maximal number of steps
+  int dm = max(4, dx,dy,dz,de);
+  int stpX,stpY,stpZ,stpE;
+  stpX=stpY=stpZ=stpE=dm/2;
+  int i = dm;
+  int delay = stpAccelRampLinear(i, totalsteps);
+  for(;;gptPolledDelay(&GPTD4, delay))
+  {
+    if(--i==0) break;
+    delay = stpAccelRampLinear(i, totalsteps);
+    stpX-=dx; if(stpX<0) {
+      stpX+=dm;
+      palToggleLine(stpAxes[1].line_stp);
+      stpCurrentAbsPos.x+=xdir; // TODO: Change these to floats and micrometers
+    }
+    stpY-=dy; if(stpY<0) {
+      stpY+=dm;
+      palToggleLine(stpAxes[0].line_stp);
+      stpCurrentAbsPos.y+=ydir;
+    }
+    stpZ-=dz; if(stpZ<0) {
+      stpZ+=dm;
+      palToggleLine(stpAxes[2].line_stp);
+      stpCurrentAbsPos.z+=zdir;
+    }
+    stpE-=de; if(stpE<0) {
+      stpE+=dm;
+      palToggleLine(stpAxes[3].line_stp);
+      stpCurrentAbsPos.stpE+=edir;
+    }
+    // TODO: check for endstop hit!
+  }
+  palSetLine(stpAxes[0].line_en);
+  palSetLine(stpAxes[1].line_en);
+  palSetLine(stpAxes[2].line_en);
+  palSetLine(stpAxes[3].line_en);
+  return 0;
+}
+
+
+int stpAccelRampLinear(int nremstep, stpCoord_t totalsteps)
+{
+  // TODO: Add entry speed and exit speed
+  // find axis with maximum steps
+  stpAxis_t* maxax;
+  int maxsteps = max(4, totalsteps.x, totalsteps.y, totalsteps.z, totalsteps.stpE);
+  if(totalsteps.x == maxsteps)
+    maxax = &stpAxes[1];
+  if(totalsteps.y == maxsteps)
+    maxax = &stpAxes[0];
+  if(totalsteps.z == maxsteps)
+    maxax = &stpAxes[2];
+  if(totalsteps.stpE == maxsteps)
+    maxax = &stpAxes[3];
+  // If it's the first step
+  int minfeed = maxax->steps_per_mm*STEPPER_START_SPEED/60;
+  if(nremstep==maxsteps)
+    return CLOCK_FREQ/minfeed;
+  // calculate number of ramping steps
+  // find speed in the main axis
+  int accel = maxax->steps_per_mm*stpAccel;
+  unsigned int maxfeed = maxax->steps_per_mm;
+  maxfeed*=stpFeedrate;
+  if(maxax->designation!='E'){
+    maxfeed*=maxsteps;
+    maxfeed/=stpCoordAbs(totalsteps);
+  }
+  maxfeed/=60;
+  unsigned int ramplen = (maxfeed*maxfeed-minfeed*minfeed);
+      ramplen /= 2; //TODO: Fix integer overflow
+  ramplen/=accel;
+  // check if acceleration to desired feedrate possible?
+  if(maxsteps<2*ramplen)
+    ramplen = maxsteps/2; // change the ramp lenght to halfpoint of movement
+  if(maxsteps-nremstep<ramplen)
+    return CLOCK_FREQ/sqrt(2*accel*(maxsteps-nremstep)+minfeed*minfeed);
+  if(nremstep<ramplen)
+    return CLOCK_FREQ/sqrt(2*accel*(nremstep)+minfeed*minfeed);
+   return CLOCK_FREQ/maxfeed;
+}

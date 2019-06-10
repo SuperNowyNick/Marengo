@@ -21,8 +21,11 @@ int consPrintf(const char *fmt, ...){
 
   va_start(ap, fmt);
   formatted_bytes = chvprintf(consConfig.Stream, fmt, ap);
-  gwinvPrintf(consConfig.Win, fmt, ap); // This function has been added to gwin_console.c
+  if(gwinGetVisible(consConfig.Win)==TRUE)
+      gwinvPrintf(consConfig.Win, fmt, ap); // This function has been added to gwin_console.c
   va_end(ap);
+
+
 
   return formatted_bytes;
 }

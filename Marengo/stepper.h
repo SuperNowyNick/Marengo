@@ -11,10 +11,15 @@
 #include "ch.h"
 #include "hal.h"
 #include "pin_mapping.h"
+#include "float.h"
 
-// Timer settings
-#define CLOCK_FREQ 10500000 // No less than MAX_SPEED*STEPS_PER_MM
-#define MAX_SPEED 200 // in mm per s
+// Timer and speed settings
+#define CLOCK_FREQ 80000 // 400stp/mm * 200mm/min gives 80000 stp/min
+                         // we will
+#define MAX_FEEDRATE 200 // in mm per min
+#define STEPPER_START_SPEED 1 //in mm per min
+#define STEPPER_START_DELAY 12000 // ticks of clock (80000*60 1/min / (1mm/min * 400stp/mm))
+#define STEPPER_ACCEL 10 // in mm per s
 
 #define STP_CMD_MODE_LINE 0
 #define STP_CMD_MODE_ARC 1
@@ -97,6 +102,9 @@ palcallback_t stpEndstopCallback(void *arg);
 
 void stpInit(void); // Init stepper motor driver
 
+stpCoord_t stpCoordAdd(stpCoord_t a, stpCoord_t b);
+stpCoord_t stpCoordSub(stpCoord_t a, stpCoord_t b);
+
 int stpDirToggle(char dsgn);
 int stpMoveAxisSteps(char axis, int stpN, int speed, int accel);
 int stpMoveAxisUnits(char axis, float distance, int delay);
@@ -104,9 +112,21 @@ int stpMoveAxisUnits(char axis, float distance, int delay);
 int stpMMtoSTPS(stpAxis_t *axis, int mm);
 int stpSTPStoMM(stpAxis_t *axis, int mm);
 
-int stpMoveLinear(stpCoord_t start, stpCoord_t end, int feedrate);
+int stpAccelRampLinear(int nremstep, stpCoord_t totalsteps);
+int stpMoveLinear(stpCoord_t end);
 int stpMoveLine(int stpX, int stpY, int stpZ, int stpE, int delay);
 int stpMoveArc(stpCoord_t start, stpCoord_t end, stpCoord_t center, int feedrate);
+
+void stpSetHome(void);
+stpCoord_t stpGetCurrentPos(void);
+int stpCoordAbs(stpCoord_t coord);
+
+stpCoord_t stpCurrentAbsPos;
+stpCoord_t stpCurrentSpeed;
+int stpFeedrate;
+int stpAccel;
+int stpModeInc;
+
 
 
 #endif /* MARENGO_STEPPER_H_ */
