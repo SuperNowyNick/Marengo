@@ -9,12 +9,12 @@
 #include "console.h" // Temporarily for debug reasons
 #include <stdarg.h>
 
+// TODO: Refactor this code!!!
+
 /* Initialize stepper motor driver.*/
 
 void stpInit(void)
 {
-  gptStart(&GPTD4, &gpt4cfg);
-  GPTD4.clock;
   consPrintf("Initializing steppers"CONSOLE_NEWLINE_STR);
   for (int i = 0; i < STP_AXES_NUM; i++) {
     consPrintf("Axis %c no: %d line: %d "CONSOLE_NEWLINE_STR, stpAxes[i].designation, i, stpAxes[i].line_stp);
@@ -41,9 +41,11 @@ void stpInit(void)
   stpCurrentSpeed.z=0;
   stpCurrentSpeed.stpE=0;
   // set mode to absolute
-  stpModeInc=0;
+  stpModeInc=1;
   stpFeedrate=100;
   stpAccel=100;
+
+  stpStatus = STP_STATE_WAITING;
 }
 
 void stpSetHome(void)
@@ -54,9 +56,32 @@ void stpSetHome(void)
   stpCurrentAbsPos.stpE=0;
 }
 
+void stpStop(void)
+{
+  // TODO: Stop fetching new moves
+  // Disable stepper interrupt routine
+  chVTReset(&vt);
+  stpStatus = STP_STATE_WAITING;
+}
+
 stpCoord_t stpGetCurrentPos(void)
 {
   return stpCurrentAbsPos;
+}
+
+int stpGetFeedrate(void)
+{
+  return stpFeedrate;
+}
+
+int stpSetFeedRate(int feedrate)
+{
+  if(feedrate<MIN_FEEDRATE)
+    feedrate=MIN_FEEDRATE;
+  if(feedrate>MAX_FEEDRATE)
+    feedrate=MAX_FEEDRATE;
+  stpFeedrate = feedrate;
+  return 0;
 }
 
 // Callback from endstop line, arg is
@@ -66,75 +91,6 @@ palcallback_t stpEndstopCallback(void *arg)
   endstop->active = palReadLine(endstop->line);
   palTogglePad(GPIOG, GPIOG_LED4_RED);
   consPrintf("Endstop %c at end %d is %d"CONSOLE_NEWLINE_STR, endstop->designation, endstop->side, endstop->active);
-}
-
-/* Do stpN steps with delay in us between them on given axis.*/
-// speed in stp/s
-// accel in stp/s^2
-int stpMoveAxisSteps(char axis, int stpN, int speed, int accel)
-{
-  int i = 0;
-  while (stpAxes[i].designation != axis) {
-    i++;
-  }
-  if (i > STP_AXES_NUM)
-    return 1;
-  int accel_steps = speed*speed/accel/2;
-  int delay = sqrt(2000000000000/accel);
-  if( accel_steps*2>stpN){
-    consPrintf("Error acceleration and deceleration longer than whole movement. Consider increasing acceleration"CONSOLE_NEWLINE_STR);
-    return 1;
-  }
-  consPrintf("Acceleration steps: %d"CONSOLE_NEWLINE_STR, accel_steps);
-  consPrintf("Initial delay: %d"CONSOLE_NEWLINE_STR, delay);
-  palClearLine(stpAxes[i].line_en);
-  for (int n = 0; n < accel_steps; n++)
-  {
-    palToggleLine(stpAxes[i].line_stp);
-    // TODO: Change to thread delay? If guaranteed to be finite
-    gptPolledDelay(&GPTD4, delay);
-    delay = sqrt(2*(n+1)*1000000000000/accel)-sqrt(2*n*1000000000000/accel);
-  }
-  consPrintf("Acceleration complete. Moving with delay: %d"CONSOLE_NEWLINE_STR, delay);
-  for (int n = accel_steps; n < stpN-accel_steps; n++) {
-    palToggleLine(stpAxes[i].line_stp);
-    //chThdSleepMicroseconds(delay);
-    gptPolledDelay(&GPTD4, delay);
-  }
-  consPrintf("Decelerating..."CONSOLE_NEWLINE_STR);
-  for (int n = 0; n < accel_steps; n++)
-  {
-    palToggleLine(stpAxes[i].line_stp);
-    gptPolledDelay(&GPTD4, delay);
-    delay = sqrt(2*(accel_steps-n)*1000000000000/accel)-sqrt(2*(accel_steps-n-1)*1000000000000/accel);
-  }
-  palSetLine(stpAxes[i].line_en);
-  return 0;
-}
-
-/* Do distance movement in mm with delay between steps on given axis.*/
-int stpMoveAxisUnits(char axis, float distance, int delay) {
-  int i = 0;
-  // Find desired axis
-  while (stpAxes[i].designation != axis) {
-    i++;
-  }
-  if (i > STP_AXES_NUM)
-    return 1;
-  // Axis found, calculate number of steps
-  int stpN = (int)(distance / stpAxes[i].thread_jump * stpAxes[i].steps_per_rev);
-  // Do the motion
-  palClearLine(stpAxes[i].line_en);
-  for (int n = 0; n < stpN; n++) {
-    palToggleLine(stpAxes[i].line_stp);
-    //chThdSleepMilliseconds(delay);
-    gptPolledDelay(&GPTD4, delay);
-    palToggleLine(stpAxes[i].line_stp);
-    //chThdSleepMilliseconds(delay);
-    gptPolledDelay(&GPTD4, delay);
-  }
-  palSetLine(stpAxes[i].line_en);
-  return 0;
 }
 
 /* Toggle direction in which the carriage moves on a given axis.*/
@@ -164,45 +120,6 @@ int max(int argc, ...)
   return max;
 }
 
-int stpMoveLine(int stpX, int stpY, int stpZ, int stpE, int delay)
-{
-  // Set required axes drivers
-  if(stpX != 0) palClearLine(stpAxes[1].line_en);
-  if(stpY != 0) palClearLine(stpAxes[0].line_en);
-  if(stpZ != 0) palClearLine(stpAxes[2].line_en);
-  if(stpE != 0) palClearLine(stpAxes[3].line_en);
-  // Set directions
-  if(stpX<0) palClearLine(stpAxes[1].line_dir);
-  else palSetLine(stpAxes[1].line_dir);
-  if(stpY<0) palClearLine(stpAxes[0].line_dir);
-  else palSetLine(stpAxes[0].line_dir);
-  if(stpZ<0) palClearLine(stpAxes[2].line_dir);
-  else palSetLine(stpAxes[2].line_dir);
-  if(stpE<0) palClearLine(stpAxes[3].line_dir);
-  else palSetLine(stpAxes[3].line_dir);
-  // Calc absolute number of steps in each dir
-  int dx = stpAxes[1].steps_per_mm*abs(stpX);
-  int dy = stpAxes[0].steps_per_mm*abs(stpY);
-  int dz = stpAxes[2].steps_per_mm*abs(stpZ);
-  int de = stpAxes[3].steps_per_mm*abs(stpE);
-  // Calculate maximal number of steps
-  int dm = max(4, dx,dy,dz,de);
-  stpX=stpY=stpZ=stpE=dm/2;
-  int i = dm;
-  for(;;gptPolledDelay(&GPTD4, delay))
-  {
-    if(--i==0) break;
-    stpX-=dx; if(stpX<0) { stpX+=dm; palToggleLine(stpAxes[1].line_stp); }
-    stpY-=dy; if(stpY<0) { stpY+=dm; palToggleLine(stpAxes[0].line_stp); }
-    stpZ-=dz; if(stpZ<0) { stpZ+=dm; palToggleLine(stpAxes[2].line_stp); }
-    stpE-=de; if(stpE<0) { stpE+=dm; palToggleLine(stpAxes[3].line_stp); }
-  }
-  palSetLine(stpAxes[0].line_en);
-  palSetLine(stpAxes[1].line_en);
-  palSetLine(stpAxes[2].line_en);
-  palSetLine(stpAxes[3].line_en);
-}
-
 stpCoord_t stpCoordAdd(stpCoord_t a, stpCoord_t b)
 {
   stpCoord_t ret;
@@ -222,90 +139,174 @@ stpCoord_t stpCoordSub(stpCoord_t a, stpCoord_t b)
   return ret;
 }
 
-
 int stpCoordAbs(stpCoord_t coord)
 {
+  if(max(3, coord.x, coord.y, coord.z)>0xFFFF){
+    coord.x/=0x100;
+    coord.y/=0x100;
+    coord.z/=0x100;
+    return 0x100*sqrt(coord.x*coord.x+coord.y*coord.y+coord.z*coord.z);
+  }
   return sqrt(coord.x*coord.x+coord.y*coord.y+coord.z*coord.z);
 }
 
-int stpMoveLinear(stpCoord_t end)
+stpCoordF_t stpCoordFZero(void)
 {
+  stpCoordF_t a;
+  a.x = fzero();
+  a.y = fzero();
+  a.z = fzero();
+  a.stpE = fzero();
+  return a;
+}
+
+
+void stpSetPosition(stpCoordF_t pos)
+{
+  stpCoordConvMetricF2Steps(&pos, &stpCurrentAbsPos);
+}
+
+stpCoord_t* stpCoordConvMetric2Steps(stpCoord_t* coord)
+{
+  coord->x*=stpAxes[1].steps_per_mm;
+  coord->y*=stpAxes[0].steps_per_mm;
+  coord->z*=stpAxes[2].steps_per_mm;
+  coord->stpE*=stpAxes[3].steps_per_mm;
+  return coord;
+}
+
+stpCoord_t* stpCoordConvMetricF2Steps(stpCoordF_t* input, stpCoord_t* output)
+{
+  float_t temp;
+  temp = fmulti(input->x, stpAxes[1].steps_per_mm);
+  output->x=temp.signum*temp.character;
+  temp = fmulti(input->y, stpAxes[0].steps_per_mm);
+  output->y=temp.signum*temp.character;
+  temp = fmulti(input->z, stpAxes[2].steps_per_mm);
+  output->z=temp.signum*temp.character;
+  temp = fmulti(input->stpE, stpAxes[3].steps_per_mm);
+  output->stpE=temp.signum*temp.character;
+  return output;
+}
+
+stpCoordF_t stpGetCoordF(void)
+{
+  stpCoordF_t coord;
+  coord.x=idiv(stpCurrentAbsPos.x, stpAxes[1].steps_per_mm, 2);
+  coord.y=idiv(stpCurrentAbsPos.y, stpAxes[0].steps_per_mm, 2);
+  coord.z=idiv(stpCurrentAbsPos.z, stpAxes[2].steps_per_mm, 2);
+  coord.stpE=idiv(stpCurrentAbsPos.stpE, stpAxes[3].steps_per_mm, 2);
+  return coord;
+}
+
+int stpMoveLinearInit(stpCoord_t end){
+  if(stpStatus != STP_STATE_WAITING){
+    consPrintf("ERROR! STEPPERMOTOR ALREADY MOVING!"CONSOLE_NEWLINE_STR);
+    return 1;
+  }
   stpCoord_t mov;
-  //if(!stpModeInc)
-  //  mov = stpCoordSub(end, stpCurrentAbsPos);
-  //else mov=end;
-  mov=end;
+  //stpCoordConvMetric2Steps(&end);
+  if(!stpModeInc)
+    mov = stpCoordSub(end, stpCurrentAbsPos);
+  else mov=end;
+  // TODO: Fix if end = 0 0 0 0
+  if(!mov.x && !mov.y && !mov.z && !mov.stpE){
+    stpStatus = STP_STATE_WAITING;
+    return 1;
+  }
   // set stepper drivers
   if(mov.x!=0) palClearLine(stpAxes[1].line_en);
   if(mov.y!=0) palClearLine(stpAxes[0].line_en);
   if(mov.z!=0) palClearLine(stpAxes[2].line_en);
   if(mov.stpE!=0) palClearLine(stpAxes[3].line_en);
   // set directions
-  int xdir=1, ydir=1, zdir=1, edir=1;
+  stpCurrentMove.xdir=1;
+  stpCurrentMove.ydir=1;
+  stpCurrentMove.zdir=1;
+  stpCurrentMove.edir=1;
+
   if(mov.x<0) {
     palClearLine(stpAxes[1].line_dir);
-    xdir=-1;
+    stpCurrentMove.xdir=-1;
   }
   else palSetLine(stpAxes[1].line_dir);
   if(mov.y<0) {
     palClearLine(stpAxes[0].line_dir);
-    ydir=-1;
+    stpCurrentMove.ydir=-1;
   }
   else palSetLine(stpAxes[0].line_dir);
   if(mov.z<0) {
     palClearLine(stpAxes[2].line_dir);
-    zdir=-1;
+    stpCurrentMove.zdir=-1;
   }
   else palSetLine(stpAxes[2].line_dir);
   if(mov.stpE<0) {
     palClearLine(stpAxes[3].line_dir);
-    edir=-1;
+    stpCurrentMove.edir=-1;
   }
   else palSetLine(stpAxes[3].line_dir);
-  // calculate number of steps per axis
-  int dx = stpAxes[1].steps_per_mm*abs(mov.x);
-  int dy = stpAxes[0].steps_per_mm*abs(mov.y);
-  int dz = stpAxes[2].steps_per_mm*abs(mov.z);
-  int de = stpAxes[3].steps_per_mm*abs(mov.stpE);
-  stpCoord_t totalsteps = (stpCoord_t){dx,dy,dz,de};
-  int curX=0,curY=0,curZ=0,curE=0;
+  stpCurrentMove.dx = abs(mov.x);
+  stpCurrentMove.dy = abs(mov.y);
+  stpCurrentMove.dz = abs(mov.z);
+  stpCurrentMove.de = abs(mov.stpE);
   // Calc maximal number of steps
-  int dm = max(4, dx,dy,dz,de);
-  int stpX,stpY,stpZ,stpE;
-  stpX=stpY=stpZ=stpE=dm/2;
-  int i = dm;
-  int delay = stpAccelRampLinear(i, totalsteps);
-  for(;;gptPolledDelay(&GPTD4, delay))
+  stpCurrentMove.dm = max(4, stpCurrentMove.dx, stpCurrentMove.dy,
+                          stpCurrentMove.dz, stpCurrentMove.de);
+  stpCurrentMove.stpX=stpCurrentMove.dm/2;
+  stpCurrentMove.stpY=stpCurrentMove.dm/2;
+  stpCurrentMove.stpZ=stpCurrentMove.dm/2;
+  stpCurrentMove.stpE1=stpCurrentMove.dm/2;
+  stpCurrentMove.i = stpCurrentMove.dm;
+  chVTSet(&vt, 1, stpMoveLinear, NULL);
+  stpStatus = STP_STATE_RUNNING;
+  //consPrintf("Moving stepper motors by X%dY%dZ%dE%d steps"CONSOLE_NEWLINE_STR, stpCurrentMove.dx, stpCurrentMove.dy,
+  //  stpCurrentMove.dz, stpCurrentMove.de);
+  return 0;
+}
+void stpMoveLinear(void *p)
+{
+  stpCoord_t totalsteps = (stpCoord_t){stpCurrentMove.dx, stpCurrentMove.dy,
+    stpCurrentMove.dz, stpCurrentMove.de};
+  int delay = stpAccelRampLinear(stpCurrentMove.i, totalsteps);
+  if(--stpCurrentMove.i==0)
+{
+    palSetLine(stpAxes[0].line_en);
+    palSetLine(stpAxes[1].line_en);
+    palSetLine(stpAxes[2].line_en);
+    palSetLine(stpAxes[3].line_en);
+    chSysLockFromISR();
+    chVTResetI(&vt);
+    chSysUnlockFromISR();
+    stpStatus = STP_STATE_WAITING;
+}
+  else
   {
-    if(--i==0) break;
-    delay = stpAccelRampLinear(i, totalsteps);
-    stpX-=dx; if(stpX<0) {
-      stpX+=dm;
+  chSysLockFromISR();
+  chVTSetI(&vt, delay, stpMoveLinear, NULL);
+  chSysUnlockFromISR();
+  }
+    delay = stpAccelRampLinear(stpCurrentMove.i, totalsteps);
+    stpCurrentMove.stpX-=stpCurrentMove.dx; if(stpCurrentMove.stpX<0) {
+      stpCurrentMove.stpX+=stpCurrentMove.dm;
       palToggleLine(stpAxes[1].line_stp);
-      stpCurrentAbsPos.x+=xdir; // TODO: Change these to floats and micrometers
+      stpCurrentAbsPos.x+=stpCurrentMove.xdir;
     }
-    stpY-=dy; if(stpY<0) {
-      stpY+=dm;
+    stpCurrentMove.stpY-=stpCurrentMove.dy; if(stpCurrentMove.stpY<0) {
+      stpCurrentMove.stpY+=stpCurrentMove.dm;
       palToggleLine(stpAxes[0].line_stp);
-      stpCurrentAbsPos.y+=ydir;
+      stpCurrentAbsPos.y+=stpCurrentMove.ydir;
     }
-    stpZ-=dz; if(stpZ<0) {
-      stpZ+=dm;
+    stpCurrentMove.stpZ-=stpCurrentMove.dz; if(stpCurrentMove.stpZ<0) {
+      stpCurrentMove.stpZ+=stpCurrentMove.dm;
       palToggleLine(stpAxes[2].line_stp);
-      stpCurrentAbsPos.z+=zdir;
+      stpCurrentAbsPos.z+=stpCurrentMove.zdir;
     }
-    stpE-=de; if(stpE<0) {
-      stpE+=dm;
+    stpCurrentMove.stpE1-=stpCurrentMove.de; if(stpCurrentMove.stpE1<0) {
+      stpCurrentMove.stpE1+=stpCurrentMove.dm;
       palToggleLine(stpAxes[3].line_stp);
-      stpCurrentAbsPos.stpE+=edir;
+      stpCurrentAbsPos.stpE+=stpCurrentMove.edir;
     }
     // TODO: check for endstop hit!
-  }
-  palSetLine(stpAxes[0].line_en);
-  palSetLine(stpAxes[1].line_en);
-  palSetLine(stpAxes[2].line_en);
-  palSetLine(stpAxes[3].line_en);
-  return 0;
 }
 
 
@@ -333,13 +334,10 @@ int stpAccelRampLinear(int nremstep, stpCoord_t totalsteps)
   unsigned int maxfeed = maxax->steps_per_mm;
   maxfeed*=stpFeedrate;
   if(maxax->designation!='E'){
-    maxfeed*=maxsteps;
-    maxfeed/=stpCoordAbs(totalsteps);
+    maxfeed*=maxsteps/stpCoordAbs(totalsteps);
   }
   maxfeed/=60;
-  unsigned int ramplen = (maxfeed*maxfeed-minfeed*minfeed);
-      ramplen /= 2; //TODO: Fix integer overflow
-  ramplen/=accel;
+  unsigned int ramplen = (maxfeed*maxfeed-minfeed*minfeed)/2/accel;
   // check if acceleration to desired feedrate possible?
   if(maxsteps<2*ramplen)
     ramplen = maxsteps/2; // change the ramp lenght to halfpoint of movement
@@ -349,3 +347,5 @@ int stpAccelRampLinear(int nremstep, stpCoord_t totalsteps)
     return CLOCK_FREQ/sqrt(2*accel*(nremstep)+minfeed*minfeed);
    return CLOCK_FREQ/maxfeed;
 }
+
+

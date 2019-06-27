@@ -7,6 +7,7 @@
 
 #include "gui.h"
 #include "heater.h"
+#include "stepper.h"
 
 void guiInit(void)
 {
@@ -1015,6 +1016,7 @@ threadreturn_t guiThread(void* param)
 		switch (pe->type) {
 		case GEVENT_GWIN_BUTTON:
 			gwin = ((GEventGWinButton*)pe)->gwin;
+			// Menu buttons
 			if (gwin == guiMainMenuStatusButtonHandle) { guiStatusWindowShow(); };
 			if (gwin == guiMainMenuMotionButtonHandle) { guiMotionMenuShow(); }
 			if (gwin == guiMainMenuTemperatureButtonHandle) { guiTemperatureMenuShow(); }
@@ -1027,12 +1029,36 @@ threadreturn_t guiThread(void* param)
 			if (gwin == guiTemperatureMenuReturnButtonHandle) { guiTemperatureMenuHide(); }
 			if (gwin == guiWiFiMenuReturnButtonHandle) { guiWiFiMenuHide(); }
 			if (gwin == guiSettingsMenuReturnButtonHandle) { guiSettingsMenuHide(); }
+			// Status window buttons
+			if (gwin == guiStatusWindowStopButton) { stpStop(); }
+			// Motion menu window buttons
+			if (gwin == guiMotionMenuButtonSetHome) { stpSetHome(); }
 			break;
 		default:
 			break;
 		}
 
         // Update labels
+		// Status menu labels
+		// TODO: Update status of stepper motors
+		stpCoordF_t coord = stpGetCoordF();
+		gwinSetText(guiStatusWindowCoordX, myftoa(coord.x, buf), TRUE);
+		gwinSetText(guiStatusWindowCoordY, myftoa(coord.y, buf), TRUE);
+		gwinSetText(guiStatusWindowCoordZ, myftoa(coord.z, buf), TRUE);
+		gwinSetText(guiStatusWindowFeedrate, itoa(stpGetFeedrate(),
+		                                          buf, 10), TRUE);
+		// TODO: Calculate elasped time
+		// TODO: Calculate remaining time
+		// TODO: Calculate progress
+		// TODO: Show current command
+		// TODO: Show queued commands
+
+		// Motion menu labels
+        gwinSetText(guiMotionMenuXCoordAbs, myftoa(coord.x, buf), TRUE);
+        gwinSetText(guiMotionMenuYCoordAbs, myftoa(coord.y, buf), TRUE);
+        gwinSetText(guiMotionMenuZCoordAbs, myftoa(coord.z, buf), TRUE);
+
+
         // Heater temperatures
         gwinSetText(guiTemperatureMenuExtruderCurrentTempValue,
                     itoa(heaterGetTemp(&Heater1), buf, 10), TRUE);

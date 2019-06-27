@@ -14,11 +14,11 @@
 #include "float.h"
 
 // Timer and speed settings
-#define CLOCK_FREQ 80000 // 400stp/mm * 200mm/min gives 80000 stp/min
-                         // we will
-#define MAX_FEEDRATE 200 // in mm per min
-#define STEPPER_START_SPEED 1 //in mm per min
-#define STEPPER_START_DELAY 12000 // ticks of clock (80000*60 1/min / (1mm/min * 400stp/mm))
+#define CLOCK_FREQ CH_CFG_ST_FREQUENCY
+#define MAX_FEEDRATE 4000 // in mm per min
+#define MIN_FEEDRATE 1
+#define STEPPER_START_SPEED 10 //in mm per min
+//#define STEPPER_START_DELAY 12000 // ticks of clock (80000*60 1/min / (1mm/min * 400stp/mm))
 #define STEPPER_ACCEL 10 // in mm per s
 
 #define STP_CMD_MODE_LINE 0
@@ -49,21 +49,51 @@ typedef struct {
 } stpEndstop_t;
 
 typedef struct {
-  int x;
-  int y;
-  int z;
+  signed int x;
+  signed int y;
+  signed int z;
   /*
-  int a;
-  int b;
-  int c;
-  int u;
-  int v;
-  int w;
+  signed int a;
+  signed int b;
+  signed int c;
+  signed int u;
+  signed int v;
+  signed int w;
    */
-  int stpE;
+  signed int stpE;
 } stpCoord_t;
 
+typedef struct {
+  float_t x;
+  float_t y;
+  float_t z;
+  /*
+  float_t int a;
+  float_t int b;
+  float_t int c;
+  float_t int u;
+  float_t int v;
+  float_t int w;
+   */
+  float_t stpE;
+} stpCoordF_t;
 
+typedef struct {
+  int stpX;
+  int stpY;
+  int stpZ;
+  int stpE1;
+  int dx;
+  int dy;
+  int dz;
+  int de;
+  int dm;
+  int i; // number of steps to end
+  signed char xdir;
+  signed char ydir;
+  signed char zdir;
+  signed char edir;
+} stpLinearMove_t;
 
 typedef struct {
   char type;
@@ -71,14 +101,6 @@ typedef struct {
   stpCoord_t endCoord;
   int feedrate;
 } stpCmd_t;
-
-
-// Clock controlling steppers
-static const GPTConfig gpt4cfg = {
-  CLOCK_FREQ, //frequency of timer clock.
-  NULL, // No callback
-  0, 0
-};
 
 // Stepper motors
 #define STP_AXES_NUM 4
@@ -104,6 +126,12 @@ void stpInit(void); // Init stepper motor driver
 
 stpCoord_t stpCoordAdd(stpCoord_t a, stpCoord_t b);
 stpCoord_t stpCoordSub(stpCoord_t a, stpCoord_t b);
+int stpCoordAbs(stpCoord_t coord);
+
+stpCoordF_t stpCoordFZero(void);
+
+stpCoord_t* stpCoordConvMetric2Steps(stpCoord_t* coord);
+stpCoord_t* stpCoordConvMetricF2Steps(stpCoordF_t* input, stpCoord_t* output);
 
 int stpDirToggle(char dsgn);
 int stpMoveAxisSteps(char axis, int stpN, int speed, int accel);
@@ -113,19 +141,30 @@ int stpMMtoSTPS(stpAxis_t *axis, int mm);
 int stpSTPStoMM(stpAxis_t *axis, int mm);
 
 int stpAccelRampLinear(int nremstep, stpCoord_t totalsteps);
-int stpMoveLinear(stpCoord_t end);
+int stpMoveLinearInit(stpCoord_t end);
+void stpMoveLinear(void *p);
 int stpMoveLine(int stpX, int stpY, int stpZ, int stpE, int delay);
 int stpMoveArc(stpCoord_t start, stpCoord_t end, stpCoord_t center, int feedrate);
 
 void stpSetHome(void);
+void stpSetPosition(stpCoordF_t pos);
+void stpStop(void);
 stpCoord_t stpGetCurrentPos(void);
-int stpCoordAbs(stpCoord_t coord);
+stpCoordF_t stpGetCoordF(void);
+int stpGetFeedrate(void);
+int stpSetFeedRate(int feedrate);
 
-stpCoord_t stpCurrentAbsPos;
+stpCoord_t stpCurrentAbsPos; // current position in steps
 stpCoord_t stpCurrentSpeed;
+
+stpLinearMove_t stpCurrentMove;
+
 int stpFeedrate;
 int stpAccel;
 int stpModeInc;
+
+virtual_timer_t vt;
+char stpStatus;
 
 
 

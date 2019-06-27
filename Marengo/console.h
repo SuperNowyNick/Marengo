@@ -15,6 +15,10 @@
 #ifndef MARENGO_CONSOLE_H_
 #define MARENGO_CONSOLE_H_
 
+
+#define consDebug(...) //
+
+
 #define CONSOLE_MAX_LINE_LENGTH 64
 #define CONSOLE_MAX_TOKENS 8
 #define CONSOLE_TOKEN_DELIMITERS " \t\n\r\a"

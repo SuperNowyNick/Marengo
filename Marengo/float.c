@@ -15,9 +15,11 @@ float_t itof(int a)
 float_t idiv(int a, int b, signed char precision)
 {
     float_t c;
-    c.character = a / b;
     c.signum = (a < 0) ? -1 : 1;
     c.signum *= (b < 0) ? -1 : 1;
+    b= abs(b);
+    a = abs(a);
+    c.character = a / b;
     c.precision = precision;
     if (precision > 0)
     {
@@ -199,8 +201,9 @@ float_t myatof(char* str)
     }
     return result;
 }
-int myftoa(float_t f, char* str)
+char* myftoa(float_t f, char* str)
 {
+    char *temp = str;
     char buf[16];
     char *p = buf;
 
@@ -230,7 +233,8 @@ int myftoa(float_t f, char* str)
         while (p > buf)
             *str++ = *--p;
     }
-    return len;
+    *str++=0;
+    return temp;
 }
 
 void printFloat(float_t f)
@@ -238,7 +242,7 @@ void printFloat(float_t f)
     if (f.signum < 0)
         consPrintf("-");
     consPrintf("%d", f.character);
-    if (f.mantisa > 0)
+    //if (f.mantisa > 0)
         consPrintf(".");
     char* c = calloc(f.precision + 1, sizeof(char));
     c[f.precision] = 0;
@@ -248,5 +252,32 @@ void printFloat(float_t f)
         c[i - 1] = (tempman % 10) + 48;
         tempman /= 10;
     }
-    printf("%s", c);
+    consPrintf("%s", c);
+}
+
+float_t fzero(void)
+{
+  float_t a;
+  a.signum=1;
+  a.character=0;
+  a.mantisa=0;
+  a.precision=0;
+  return a;
+}
+
+float_t fmulti(float_t a, int b)
+{
+  float_t c;
+  c=a;
+  if(b<0)
+    c.signum*=-1;
+  b=abs(b);
+  c.character*=b;
+  c.mantisa*=b;
+  int checker = 1;
+  for (int i = 0; i < c.precision; i++)
+      checker *= 10;
+  c.character+=c.mantisa/checker;
+  c.mantisa%=checker;
+  return c;
 }

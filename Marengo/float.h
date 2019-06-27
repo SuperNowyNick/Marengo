@@ -12,10 +12,12 @@ typedef struct {
 } float_t;
 
 float_t myatof(char* str);
-int myftoa(float_t f, char* buf);
+char* myftoa(float_t f, char* buf);
 float_t itof(int a);
 float_t idiv(int a, int b, signed char precision);
 float_t fidiv(float_t a, int b, signed char precision);
 float_t fadd(float_t a, float_t b);
 float_t fsub(float_t a, float_t b);
+float_t fmulti(float_t a, int b);
+float_t fzero(void);
 void printFloat(float_t f);

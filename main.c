@@ -126,42 +126,6 @@ ccmd_t CmdThreads(int argc, char **argv)
   } while (tp != NULL);
   return CCMD_SUCCES;
 }
-ccmd_t CmdStpmovsteps(int argc, char **argv)
-{
-  if (argc!=5){
-    consPrintf("Not enough or too many parameters!"CONSOLE_NEWLINE_STR);
-    return CCMD_FAIL;
-  }
-  consPrintf(argv[1]);
-  if (!strspn(argv[1], "XYZE")){
-    consPrintf("No such axis!"CONSOLE_NEWLINE_STR);
-    return CCMD_FAIL;
-  }
-  char axis = *argv[1];
-  int steps, speed, accel;
-  steps = atoi(argv[2]);
-  speed = atoi(argv[3]);
-  accel = atoi(argv[4]);
-  if (steps<=0){
-    consPrintf("Steps number must be numerical and greater than zero!"CONSOLE_NEWLINE_STR);
-    return CCMD_FAIL;
-  }
-  if (speed<=0){
-    consPrintf("Speed must be numerical and greater than zero!"CONSOLE_NEWLINE_STR);
-    return CCMD_FAIL;
-  }
-  if (accel<=0){
-    consPrintf("Acceleration must be numerical and greater than zero!"CONSOLE_NEWLINE_STR);
-    return CCMD_FAIL;
-  }
-  consPrintf("Moving axis %c with %d steps at %d mm/s speed with acceleration %d mm/s^2"CONSOLE_NEWLINE_STR, axis, steps, speed, accel);
-  if (stpMoveAxisSteps(axis, steps, speed, accel)){
-    consPrintf("Error!"CONSOLE_NEWLINE_STR);
-    return CCMD_FAIL;
-  }
-  else
-    return CCMD_SUCCES;
-}
 ccmd_t CmdStpDir(int argc, char **argv)
 {
   if (argc!=2){
@@ -185,18 +149,19 @@ ccmd_t CmdStpDir(int argc, char **argv)
 }
 ccmd_t CmdGCode(int argc, char **argv)
 {
-  char line[256];
-  consGetLine(line, 256);
-  if (line[0]!='%'){
-    consPrintf("Program must begin with % sign"CONSOLE_NEWLINE_STR);
-    return CCMD_FAIL;
-  }
+  char line[GCODE_MAXLINELENGTH];
+  gcommand_t cmd;
   for(;;)
   {
-    consGetLine(line,256);
+    consGetLine(line,GCODE_MAXLINELENGTH);
     if (line[0]==37 || !strcmp(line, "M30"))
       break;
-    gcode_parseline(line);
+    chThdSleepMilliseconds(1000);
+    cmd = gcode_parseline(line);
+    if (cmd.programflow == PROGRAM_FLOW_STOPPED)
+        consPrintf("ERROR! Line not parsed"CONSOLE_NEWLINE_STR);
+    gcodeParseCommand(cmd);
+    printf("\n");
   }
   return CCMD_SUCCES;
 }
@@ -236,7 +201,7 @@ ccmd_t CmdHeatSet(int argc, char **argv)
     return CCMD_FAIL;
   }
   heaterSetTemp(heat, atoi(argv[2]));
-  consPrintf("heater temp set to %d degrees"CONSOLE_NEWLINE_STR, atoi(argv[1]));
+  consPrintf("heater temp set to %d degrees"CONSOLE_NEWLINE_STR, atoi(argv[2]));
   return CCMD_SUCCES;
 }
 ccmd_t CmdEndstops(int argc, char **argv)
@@ -252,18 +217,38 @@ ccmd_t CmdMoveLine(int argc, char **argv)
     consPrintf("Not enough or too many parameters!"CONSOLE_NEWLINE_STR);
     return CCMD_FAIL;
     }
-  int x = atoi(argv[1]);
-  int y = atoi(argv[2]);
-  int z = atoi(argv[3]);
-  int e = atoi(argv[4]);
+  float_t x = myatof(argv[1]);
+  float_t y = myatof(argv[2]);
+  float_t z = myatof(argv[3]);
+  float_t e = myatof(argv[4]);
   if(argc>5)
     stpFeedrate = atoi(argv[5]);
   if(argc==7)
     stpAccel = atoi(argv[6]);
-  consPrintf("Moving in line with to x:%d,y:%d,z:%d,e:%d"CONSOLE_NEWLINE_STR, x,y,z,e);
+  consPrintf("Moving in line with to x:");
+  printFloat(x);
+  consPrintf("y:");
+  printFloat(y);
+  consPrintf("z:");
+  printFloat(z);
+  consPrintf("e:");
+  printFloat(e);
+  consPrintf(CONSOLE_NEWLINE_STR);
   //stpMoveLine(x,y,z,e,d);
-  stpCoord_t ruch = (stpCoord_t){x,y,z,e};
-  stpMoveLinear(ruch);
+  stpCoordF_t ruch;
+  stpCoord_t kroki;
+  ruch.x=x;
+  ruch.y=y;
+  ruch.z=z;
+  ruch.stpE=e;
+  stpCoordConvMetricF2Steps(&ruch, &kroki);
+  stpMoveLinearInit(kroki);
+  return CCMD_SUCCES;
+}
+ccmd_t CmdStpStop(int argc, char **argv)
+{
+  stpStop();
+  consPrintf("Stepper motors stopped!"CONSOLE_NEWLINE_STR);
   return CCMD_SUCCES;
 }
 /*===========================================================================*/
@@ -351,13 +336,13 @@ int main(void) {
   {
    {(const char*)"info", (ccmd_t)CmdInfo},
    {"threads", CmdThreads, "Displays threads informationn"},
-   {"stpmovsteps", CmdStpmovsteps, "Moves stepper motor. Args: axis, number fo steps, speed, acceleration"},
    {"stpdir", CmdStpDir, "Changes direction of movement for stepper motor. Args: axis"},
    {"gcode", CmdGCode, "Opens up gcode interpreter"},
    {"endstops", CmdEndstops, "Displays endstops status"},
    {"heattemp", CmdHeatTemp, "Displays heater temperature. Args heater num"},
    {"heatsettemp", CmdHeatSet, "Set heater temperature. Args: heater num, temp in celsius"},
    {"stpmovline", CmdMoveLine, "Move to coords x,y,z,e, with delay e"},
+   {"stpstop", CmdStpStop, "Immidiately stop stepper motors"},
    {NULL, NULL}
   };
 
@@ -384,9 +369,12 @@ int main(void) {
   /*
    * Normal main() thread activity, spawning shells.
    */
+  // Start in gcode
+  //CmdGCode(0, "dupa");
+
   while (true) {
     chThdSleepMilliseconds(1000);
-    guiProgressBarIncrement();
+    //guiProgressBarIncrement();
   }
   return 0;
 }

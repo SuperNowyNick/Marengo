@@ -146,7 +146,7 @@ bool consGetLine(char *line, unsigned size){
       }
       continue;
     }
-    if (c == '\r') { // enter?
+    if (c == '\r' || c == 0x0D || c==0x0A) { // enter?
       consPrintf(CONSOLE_NEWLINE_STR);
       *p = 0;
       return false;
