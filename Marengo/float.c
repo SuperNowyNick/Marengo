@@ -11,6 +11,7 @@ float_t itof(int a)
     b.character = abs(a);
     b.mantisa = 0;
     b.precision = 0;
+    return b;
 }
 float_t idiv(int a, int b, signed char precision)
 {
@@ -265,6 +266,25 @@ float_t fzero(void)
   return a;
 }
 
+float_t fcmp(float_t a, float_t b)
+{
+  return fpos(fsub(a,b)) ? a : b;
+}
+float_t fmax(int argc, ...)
+{
+  float_t max,a;
+  va_list ptr;
+  va_start(ptr,argc);
+  max = va_arg(ptr, float_t);
+  for( int i=1; i<argc; i++)
+  {
+    a = va_arg(ptr, float_t);
+    max = fcmp(max,a);
+  }
+  va_end(ptr);
+  return max;
+}
+
 float_t fmulti(float_t a, int b)
 {
   float_t c;
@@ -280,4 +300,37 @@ float_t fmulti(float_t a, int b)
   c.character+=c.mantisa/checker;
   c.mantisa%=checker;
   return c;
+}
+
+float_t fabs(float_t a)
+{
+  float_t b = a;
+  b.signum=1;
+  return b;
+}
+
+int fpos(float_t a)
+{
+  return a.signum > 0;
+}
+int fneg(float_t a)
+{
+  return a.signum < 0;
+}
+int fnonzero(float_t a)
+{
+  return a.character!=0 || a.mantisa!=0;
+}
+
+int ffloor(float_t a)
+{
+  int res;
+  if(a.signum <0){
+    if(a.mantisa>0)
+      res = a.signum*(a.character+1);
+    res = a.signum*a.character;
+  }
+  else
+    res = a.character;
+  return res;
 }
