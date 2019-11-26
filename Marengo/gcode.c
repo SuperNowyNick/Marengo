@@ -18,7 +18,7 @@ void gcode_init()
   com.coordindex = 0;
   com.cuttercompmode = CUTTERCOMP_MODE_DISABLE;
   com.d=0;
-  com.distancemode=stpModeInc; // TODO: Add function stpGetDistanceMode()
+  com.distancemode=DISTANCE_MODE_ABSOLUTE; // TODO: Add function stpGetDistanceMode()
   com.e = (float_t){0,0,0,0};
   com.extrudermode =EXTRUDER_MODE_ABSOLUTE;
   com.f = (float_t){0,0,0,0};
@@ -122,6 +122,7 @@ gcommand_t gcode_parseline(char* line)
     com.xyz[0] = (float_t){0,0,0,0};
     com.xyz[1] = (float_t){0,0,0,0};
     com.xyz[2] = (float_t){0,0,0,0};
+    com.e= (float_t){0,0,0,0};
   }
   char newline[GCODE_MAXLINELENGTH];
   memcpy(newline, line, GCODE_MAXLINELENGTH);
@@ -495,7 +496,7 @@ float parse_expression(char* expr)
 
 int gcodeParseCommand(gcommand_t cmd)
 {
-  stpCoordF_t coord;
+  stpCoordF_t coord, mov;
   stpCoord_t steps;
   stpModeInc = com.distancemode; // TODO: Should be written more flexibly?
   stpSetFeedRate(com.f.character);
@@ -565,21 +566,20 @@ int gcodeParseCommand(gcommand_t cmd)
     return 0;
     break;
   case NON_MODAL_GOHOME: // G28
-    // TODO: Change to absolute mode before moving!
-    if(cmd.params_present_axis == 0)
-      coord = stpCoordFZero();
+    coord = stpGetCoordF();
+    if(cmd.params_present_axis == 0) // TODO: Add ABC axis support
+      mov = stpCoordFZero();
     else
-      coord = stpGetCoordF();
+      mov = stpGetCoordF();
     if(cmd.params_present_axis & PARAM_AXIS_X)
-      coord.x = fzero();
+      mov.x = fzero();
     if(cmd.params_present_axis & PARAM_AXIS_Y)
-      coord.y = fzero();
+      mov.y = fzero();
     if(cmd.params_present_axis & PARAM_AXIS_Z)
-      coord.z = fzero();
-    stpCoordConvMetricF2Steps(&coord, &steps);
-    stpMoveLinearInit(steps);
-    while(stpStatus!=STP_STATE_WAITING)
-      chThdSleepMilliseconds(GCODE_STPSTATUS_DELAY_TIME);
+      mov.z = fzero();
+    mov = stpCoordFSub(mov, coord);
+    mov.stpE=fzero();
+    stpMoveLinearInit(mov);
     break;
   default:
     break;
@@ -593,25 +593,43 @@ int gcodeParseCommand(gcommand_t cmd)
   switch(cmd.movemode)
   {
   case MOVE_MODE_SET_HOME: //G92
-    coord = stpCoordFZero();
+    coord = stpGetCoordF();
+    if(cmd.params_present_axis == 0 && !(cmd.params_present_misc & PARAM_MISC_E))
+      coord = stpCoordFZero();
     if(cmd.params_present_axis & PARAM_AXIS_X)
       coord.x = cmd.xyz[0];
     if(cmd.params_present_axis & PARAM_AXIS_Y)
       coord.y = cmd.xyz[1];
     if(cmd.params_present_axis & PARAM_AXIS_Z)
       coord.z = cmd.xyz[2];
+    if(cmd.params_present_misc & PARAM_MISC_E)
+      coord.stpE = cmd.e;
     stpSetPosition(coord);
     break;
-  case MOVE_MODE_FAST:
-  case MOVE_MODE_LINE:
-    coord.x = cmd.xyz[0];
-    coord.y = cmd.xyz[1];
-    coord.z = cmd.xyz[2];
-    coord.stpE = cmd.e;
-    stpCoordConvMetricF2Steps(&coord, &steps);
-    stpMoveLinearInit(steps);
-    while(stpStatus!=STP_STATE_WAITING)
-      chThdSleepMilliseconds(GCODE_STPSTATUS_DELAY_TIME);
+  case MOVE_MODE_FAST: //G0
+  case MOVE_MODE_LINE: //G1
+    // Check for any axis parameter
+    if(!((cmd.params_present_axis & (PARAM_AXIS_X | PARAM_AXIS_Y | PARAM_AXIS_Z |
+        PARAM_AXIS_A | PARAM_AXIS_B | PARAM_AXIS_C)) |
+        (cmd.params_present_misc & PARAM_MISC_E)))
+    {
+      consPrintf("Error! No axis given!"CONSOLE_NEWLINE_STR);
+      return 0;
+    }
+    mov = stpCoordFZero();
+    coord = stpGetCoordF();
+    mov.x = cmd.xyz[0];
+    mov.y = cmd.xyz[1];
+    mov.z = cmd.xyz[2];
+    mov.stpE = cmd.e;
+    if(cmd.distancemode==DISTANCE_MODE_ABSOLUTE){
+    stpSetPosition(mov);
+    mov = stpCoordFSub(mov, coord);
+    }
+    else if(cmd.distancemode==DISTANCE_MODE_INCREMENTAL){
+      stpSetPosition(stpCoordFAdd(coord, mov));
+    }
+    stpMoveLinearInit(mov);
     break;
   default:
     break;

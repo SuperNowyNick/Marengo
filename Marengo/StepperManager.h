@@ -14,19 +14,21 @@
 #include "MovementQueue.h"
 #include "ch.h"
 
+#define STEPPER_MANAGER_STEPPER_NUM 4
+
 #define STEPPER_MANAGER_CLOCK_FREQ CH_CFG_ST_FREQUENCY
 #define STEPPER_MANAGER_MINFEED 10
 #define STEPPER_MANAGER_MAXFEED 1000
 #define STEPPER_MANAGER_STPACCEL 10
 
 typedef struct {
-  StepperProxy_t* Stepper[4];
-  EndstopProxy_t* Endstop[4];
+  StepperProxy_t* Stepper[STEPPER_MANAGER_STEPPER_NUM];
+  EndstopProxy_t* Endstop[STEPPER_MANAGER_STEPPER_NUM];
   StepperMove_t move;
   MovementQueue_t* queue;
   virtual_timer_t vt;
   thread_t* tp;
-  int delay;
+  uint32_t delay;
 } StepperManager_t;
 
 static THD_WORKING_AREA(StepperManagerThreadWorkingArea, 128);

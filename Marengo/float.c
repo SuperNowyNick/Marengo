@@ -334,3 +334,42 @@ int ffloor(float_t a)
     res = a.character;
   return res;
 }
+
+
+uint16_t isqrt32(uint32_t op)
+{
+  uint32_t res = 0;
+  uint32_t one = (uint32_t)1 << 30;
+  while(one>op)
+    one>>=2;
+  while(one!=0)
+  {
+    if(op>=res+one)
+    {
+      op = op - (res + one);
+      res = res + 2*one;
+    }
+    res >>= 1;
+    one >>= 2;
+  }
+  return (uint16_t)res;
+}
+
+uint32_t isqrt64(uint64_t op)
+{
+  uint64_t res = 0;
+  uint64_t one = (uint64_t)1 << 62;
+  while(one>op)
+    one>>=2;
+  while(one!=0)
+  {
+    if(op>=res+one)
+    {
+      op = op - (res + one);
+      res = res + 2*one;
+    }
+    res >>= 1;
+    one >>= 2;
+  }
+  return (uint32_t)res;
+}

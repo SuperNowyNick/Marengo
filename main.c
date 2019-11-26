@@ -237,12 +237,7 @@ ccmd_t CmdMoveLine(int argc, char **argv)
   //stpMoveLine(x,y,z,e,d);
   stpCoordF_t ruch;
   stpCoord_t kroki;
-  ruch.x=x;
-  ruch.y=y;
-  ruch.z=z;
-  ruch.stpE=e;
-  stpCoordConvMetricF2Steps(&ruch, &kroki);
-  stpMoveLinearInit(kroki);
+  stpMoveLinearInit(ruch);
   return CCMD_SUCCES;
 }
 ccmd_t CmdStpStop(int argc, char **argv)

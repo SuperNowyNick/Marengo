@@ -13,6 +13,9 @@
 #include "pin_mapping.h"
 #include "float.h"
 
+#include "MovementQueue.h"
+#include "StepperMove.h"
+
 // Timer and speed settings
 #define CLOCK_FREQ CH_CFG_ST_FREQUENCY
 #define MAX_FEEDRATE 4000 // in mm per min
@@ -120,7 +123,7 @@ static stpEndstop_t stpEndstops[STP_ENDSTOPS_NUM] = {
 
 palcallback_t stpEndstopCallback(void *arg);
 
-
+void stpSetQueue(MovementQueue_t* queue);
 
 void stpInit(void); // Init stepper motor driver
 
@@ -129,6 +132,8 @@ stpCoord_t stpCoordSub(stpCoord_t a, stpCoord_t b);
 int stpCoordAbs(stpCoord_t coord);
 
 stpCoordF_t stpCoordFZero(void);
+stpCoordF_t stpCoordFAdd(stpCoordF_t a, stpCoordF_t b);
+stpCoordF_t stpCoordFSub(stpCoordF_t a, stpCoordF_t b);
 
 stpCoord_t* stpCoordConvMetric2Steps(stpCoord_t* coord);
 stpCoord_t* stpCoordConvMetricF2Steps(stpCoordF_t* input, stpCoord_t* output);
@@ -141,7 +146,7 @@ int stpMMtoSTPS(stpAxis_t *axis, int mm);
 int stpSTPStoMM(stpAxis_t *axis, int mm);
 
 int stpAccelRampLinear(int nremstep, stpCoord_t totalsteps);
-int stpMoveLinearInit(stpCoord_t end);
+int stpMoveLinearInit(stpCoordF_t end);
 void stpMoveLinear(void *p);
 int stpMoveLine(int stpX, int stpY, int stpZ, int stpE, int delay);
 int stpMoveArc(stpCoord_t start, stpCoord_t end, stpCoord_t center, int feedrate);
@@ -162,6 +167,8 @@ stpLinearMove_t stpCurrentMove;
 int stpFeedrate;
 int stpAccel;
 int stpModeInc;
+
+MovementQueue_t* stpMovementQueue;
 
 virtual_timer_t vt;
 char stpStatus;

@@ -14,22 +14,27 @@ void MovementQueue_Init(MovementQueue_t* const me)
   me->isEmpty=TRUE;
   me->isFull=FALSE;
   for(int i=0; i< MOVEMENT_QUEUE_SIZE; i++)
-    me->moves[i]=0;
+    memset(&(me->moves[i]), 0, sizeof(StepperMove_t));
+    //StepperMove_Init(&(me->moves[i]));
   chMtxObjectInit(&me->mutex);
 }
 
-StepperMove_t* MovementQueue_Pull(MovementQueue_t* const me)
+StepperMove_t* MovementQueue_Pull(MovementQueue_t* const me, StepperMove_t* target)
 {
   StepperMove_t* step;
+  chMtxLock(&me->mutex);
   if(me->isEmpty || me==NULL)
     step = NULL;
   else
   {
-  step = me->moves[me->tail];
+  step = &(me->moves[me->tail]);
   me->tail = (me->tail+1)%MOVEMENT_QUEUE_SIZE;
   me->isFull = FALSE;
   me->isEmpty = (me->tail == me->head);
   }
+  memcpy(target, step, sizeof(StepperMove_t));
+  memset(step, 0, sizeof(StepperMove_t));
+  chMtxUnlock(&me->mutex);
   return step;
 }
 int MovementQueue_Push(MovementQueue_t* me, StepperMove_t* move)
@@ -43,7 +48,7 @@ int MovementQueue_Push(MovementQueue_t* me, StepperMove_t* move)
   }
   else
   {
-  me->moves[me->head]=move;
+  memcpy(&(me->moves[me->head]),move,sizeof(StepperMove_t));
   me->head = (me->head+1)%MOVEMENT_QUEUE_SIZE;
   me->isFull = (me->head == me->tail);
   succes=TRUE;

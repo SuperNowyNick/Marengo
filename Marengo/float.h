@@ -28,3 +28,5 @@ int fpos(float_t a);
 int fneg(float_t a);
 int fnonzero(float_t a);
 void printFloat(float_t f);
+uint32_t isqrt64(uint64_t op);
+uint16_t isqrt32(uint32_t op);

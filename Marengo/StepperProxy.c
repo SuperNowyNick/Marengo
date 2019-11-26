@@ -1,13 +1,14 @@
 #include "StepperProxy.h"
 
 void StepperProxy_Init(StepperProxy_t* const me){
-  me->Name = NULL;
+  me->Name = STEPPER_AXIS_NULL;
   me->StepsPerRev = 0;
   me->ThreadJumpUM = 0;
   me->Microsteps = 0;
   me->GearRatio = 0;
   me->StepsPerMM = 0;
   me->maxFeedrate = 0;
+  me->position = 0;
   me->Direction = NO_DIRECTION;
   me->bLinear = FALSE;
   me->bNeedStall = FALSE;
@@ -17,10 +18,10 @@ void StepperProxy_Init(StepperProxy_t* const me){
   me->errorCode = STEPPER_NOT_CONFIGURED;
 }
 
-void StepperProxy_Configure(StepperProxy_t* const me, char* Name,
-                            unsigned int StepsPerRev, unsigned int Microsteps,
-                            unsigned int ThreadJumpUM, unsigned int GearRatio,
-                            unsigned int maxFeedrate,
+void StepperProxy_Configure(StepperProxy_t* const me, StepperAxisType_t Name,
+                            uint16_t StepsPerRev, uint16_t Microsteps,
+                            uint16_t ThreadJumpUM, uint16_t GearRatio,
+                            uint16_t maxFeedrate,
                             StepperDirection_t Direction, bool_t bLinear,
                             bool_t bNeedStall, ioline_t lineStp,
                             ioline_t lineDir, ioline_t lineEn)
@@ -90,7 +91,6 @@ void StepperProxy_Enable(StepperProxy_t* const me)
   else
   {
     palClearLine(me->lineEn);
-    //palClearLine(me->lineEn);
   }
 }
 
@@ -107,7 +107,10 @@ void StepperProxy_Step(StepperProxy_t* const me)
   if(!me->lineStp)
     me->errorCode = STEPPER_NO_PARAMS_LINES;
   else
+  {
     palToggleLine(me->lineStp);
+    me->position+=me->Direction;
+  }
 }
 
 bool_t StepperProxy_GetNeedStall(StepperProxy_t* const me)
@@ -115,20 +118,29 @@ bool_t StepperProxy_GetNeedStall(StepperProxy_t* const me)
   return me->bNeedStall;
 }
 
-unsigned int StepperProxy_GetMaxFeedrate(StepperProxy_t* const me){
+uint32_t StepperProxy_GetMaxFeedrate(StepperProxy_t* const me){
   return me->maxFeedrate;
 }
 
-float_t StepperProxy_Stps2MM(StepperProxy_t* const me, int steps){
+float_t StepperProxy_Stps2MM(StepperProxy_t* const me, uint32_t steps){
   return idiv(steps, me->StepsPerMM, 3);
 }
 
-unsigned int StepperProxy_MM2Stps(StepperProxy_t* const me, float_t mm){
+uint32_t StepperProxy_MM2Stps(StepperProxy_t* const me, float_t mm){
   return ffloor(fmulti(mm, me->StepsPerMM));
 }
 
 StepperErrorCode_t StepperProxy_GetStatus(StepperProxy_t* const me){
   return me->errorCode;
+}
+
+uint32_t StepperProxy_GetPosition(StepperProxy_t* const me)
+{
+  return me->position;
+}
+void StepperProxy_SetPosition(StepperProxy_t* const me, uint32_t position)
+{
+  me->position = position;
 }
 
 StepperProxy_t* Stepper_ProxyCreate(memory_heap_t* heap){

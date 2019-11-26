@@ -44,8 +44,13 @@ void stpInit(void)
   stpModeInc=1;
   stpFeedrate=100;
   stpAccel=100;
-
+  stpMovementQueue= NULL;
   stpStatus = STP_STATE_WAITING;
+}
+
+void stpSetQueue(MovementQueue_t* queue)
+{
+  stpMovementQueue = queue;
 }
 
 void stpSetHome(void)
@@ -159,7 +164,24 @@ stpCoordF_t stpCoordFZero(void)
   a.stpE = fzero();
   return a;
 }
-
+stpCoordF_t stpCoordFAdd(stpCoordF_t a, stpCoordF_t b)
+{
+  stpCoordF_t ret;
+  ret.x=fadd(a.x,b.x);
+  ret.y=fadd(a.y,b.y);
+  ret.z=fadd(a.z,b.z);
+  ret.stpE=fadd(a.stpE,b.stpE);
+  return ret;
+}
+stpCoordF_t stpCoordFSub(stpCoordF_t a, stpCoordF_t b)
+{
+  stpCoordF_t ret;
+  ret.x=fsub(a.x,b.x);
+  ret.y=fsub(a.y,b.y);
+  ret.z=fsub(a.z,b.z);
+  ret.stpE=fsub(a.stpE,b.stpE);
+  return ret;
+}
 
 void stpSetPosition(stpCoordF_t pos)
 {
@@ -199,70 +221,83 @@ stpCoordF_t stpGetCoordF(void)
   return coord;
 }
 
-int stpMoveLinearInit(stpCoord_t end){
-  if(stpStatus != STP_STATE_WAITING){
-    consPrintf("ERROR! STEPPERMOTOR ALREADY MOVING!"CONSOLE_NEWLINE_STR);
-    return 1;
+int stpMoveLinearInit(stpCoordF_t end){
+  if(stpMovementQueue!=NULL)
+  {
+    StepperMove_t step;
+    StepperMove_Init(&step);
+      StepperMove_Set(&step, end.x, end.y, end.z, end.stpE, stpFeedrate);
+      while(MovementQueue_Push(stpMovementQueue, &step)!=-1)
+        chThdSleepMilliseconds(1);
+      return 0;
   }
-  stpCoord_t mov;
-  //stpCoordConvMetric2Steps(&end);
-  if(!stpModeInc)
-    mov = stpCoordSub(end, stpCurrentAbsPos);
-  else mov=end;
-  // TODO: Fix if end = 0 0 0 0
-  if(!mov.x && !mov.y && !mov.z && !mov.stpE){
-    stpStatus = STP_STATE_WAITING;
-    return 1;
-  }
-  // set stepper drivers
-  if(mov.x!=0) palClearLine(stpAxes[1].line_en);
-  if(mov.y!=0) palClearLine(stpAxes[0].line_en);
-  if(mov.z!=0) palClearLine(stpAxes[2].line_en);
-  if(mov.stpE!=0) palClearLine(stpAxes[3].line_en);
-  // set directions
-  stpCurrentMove.xdir=1;
-  stpCurrentMove.ydir=1;
-  stpCurrentMove.zdir=1;
-  stpCurrentMove.edir=1;
-
-  if(mov.x<0) {
-    palClearLine(stpAxes[1].line_dir);
-    stpCurrentMove.xdir=-1;
-  }
-  else palSetLine(stpAxes[1].line_dir);
-  if(mov.y<0) {
-    palClearLine(stpAxes[0].line_dir);
-    stpCurrentMove.ydir=-1;
-  }
-  else palSetLine(stpAxes[0].line_dir);
-  if(mov.z<0) {
-    palClearLine(stpAxes[2].line_dir);
-    stpCurrentMove.zdir=-1;
-  }
-  else palSetLine(stpAxes[2].line_dir);
-  if(mov.stpE<0) {
-    palClearLine(stpAxes[3].line_dir);
-    stpCurrentMove.edir=-1;
-  }
-  else palSetLine(stpAxes[3].line_dir);
-  stpCurrentMove.dx = abs(mov.x);
-  stpCurrentMove.dy = abs(mov.y);
-  stpCurrentMove.dz = abs(mov.z);
-  stpCurrentMove.de = abs(mov.stpE);
-  // Calc maximal number of steps
-  stpCurrentMove.dm = max(4, stpCurrentMove.dx, stpCurrentMove.dy,
-                          stpCurrentMove.dz, stpCurrentMove.de);
-  stpCurrentMove.stpX=stpCurrentMove.dm/2;
-  stpCurrentMove.stpY=stpCurrentMove.dm/2;
-  stpCurrentMove.stpZ=stpCurrentMove.dm/2;
-  stpCurrentMove.stpE1=stpCurrentMove.dm/2;
-  stpCurrentMove.i = stpCurrentMove.dm;
-  chVTSet(&vt, 1, stpMoveLinear, NULL);
-  stpStatus = STP_STATE_RUNNING;
-  //consPrintf("Moving stepper motors by X%dY%dZ%dE%d steps"CONSOLE_NEWLINE_STR, stpCurrentMove.dx, stpCurrentMove.dy,
-  //  stpCurrentMove.dz, stpCurrentMove.de);
-  return 0;
+  return 1;
 }
+
+//int stpMoveLinearInit(stpCoord_t end){
+//  if(stpStatus != STP_STATE_WAITING){
+//    consPrintf("ERROR! STEPPERMOTOR ALREADY MOVING!"CONSOLE_NEWLINE_STR);
+//    return 1;
+//  }
+//  stpCoord_t mov;
+//  //stpCoordConvMetric2Steps(&end);
+//  if(!stpModeInc)
+//    mov = stpCoordSub(end, stpCurrentAbsPos);
+//  else mov=end;
+//  // TODO: Fix if end = 0 0 0 0
+//  if(!mov.x && !mov.y && !mov.z && !mov.stpE){
+//    stpStatus = STP_STATE_WAITING;
+//    return 1;
+//  }
+//  // set stepper drivers
+//  if(mov.x!=0) palClearLine(stpAxes[1].line_en);
+//  if(mov.y!=0) palClearLine(stpAxes[0].line_en);
+//  if(mov.z!=0) palClearLine(stpAxes[2].line_en);
+//  if(mov.stpE!=0) palClearLine(stpAxes[3].line_en);
+//  // set directions
+//  stpCurrentMove.xdir=1;
+//  stpCurrentMove.ydir=1;
+//  stpCurrentMove.zdir=1;
+//  stpCurrentMove.edir=1;
+//
+//  if(mov.x<0) {
+//    palClearLine(stpAxes[1].line_dir);
+//    stpCurrentMove.xdir=-1;
+//  }
+//  else palSetLine(stpAxes[1].line_dir);
+//  if(mov.y<0) {
+//    palClearLine(stpAxes[0].line_dir);
+//    stpCurrentMove.ydir=-1;
+//  }
+//  else palSetLine(stpAxes[0].line_dir);
+//  if(mov.z<0) {
+//    palClearLine(stpAxes[2].line_dir);
+//    stpCurrentMove.zdir=-1;
+//  }
+//  else palSetLine(stpAxes[2].line_dir);
+//  if(mov.stpE<0) {
+//    palClearLine(stpAxes[3].line_dir);
+//    stpCurrentMove.edir=-1;
+//  }
+//  else palSetLine(stpAxes[3].line_dir);
+//  stpCurrentMove.dx = abs(mov.x);
+//  stpCurrentMove.dy = abs(mov.y);
+//  stpCurrentMove.dz = abs(mov.z);
+//  stpCurrentMove.de = abs(mov.stpE);
+//  // Calc maximal number of steps
+//  stpCurrentMove.dm = max(4, stpCurrentMove.dx, stpCurrentMove.dy,
+//                          stpCurrentMove.dz, stpCurrentMove.de);
+//  stpCurrentMove.stpX=stpCurrentMove.dm/2;
+//  stpCurrentMove.stpY=stpCurrentMove.dm/2;
+//  stpCurrentMove.stpZ=stpCurrentMove.dm/2;
+//  stpCurrentMove.stpE1=stpCurrentMove.dm/2;
+//  stpCurrentMove.i = stpCurrentMove.dm;
+//  chVTSet(&vt, 1, stpMoveLinear, NULL);
+//  stpStatus = STP_STATE_RUNNING;
+//  //consPrintf("Moving stepper motors by X%dY%dZ%dE%d steps"CONSOLE_NEWLINE_STR, stpCurrentMove.dx, stpCurrentMove.dy,
+//  //  stpCurrentMove.dz, stpCurrentMove.de);
+//  return 0;
+//}
 void stpMoveLinear(void *p)
 {
   stpCoord_t totalsteps = (stpCoord_t){stpCurrentMove.dx, stpCurrentMove.dy,

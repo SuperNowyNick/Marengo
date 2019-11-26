@@ -8,18 +8,15 @@
 #include "StepperMove.h"
 #include "StepperProxy.h"
 
-int StepperMove_max(int argc, ...)
+static uint32_t StepperMove_max(uint16_t argc, uint32_t* table)
 {
   int max,a;
-  va_list ptr;
-  va_start(ptr, argc);
-  max = va_arg(ptr,int);
+  max = table[0];
   for(int i=1; i< argc; i++)
   {
-    a = va_arg(ptr,int);
+    a = table[i];
     max = a>max ? a : max;
   }
-  va_end(ptr);
   return max;
 }
 
@@ -37,8 +34,9 @@ void StepperMove_Init(StepperMove_t* const me)
 }
 
 void StepperMove_Set(StepperMove_t* const me, float_t x, float_t y, float_t z,
-                     float_t e, int f)
+                     float_t e, int16_t f)
 {
+  // TODO: Add checking for feedrate overrun
   me->coord[0]=x;
   me->coord[1]=y;
   me->coord[2]=z;
@@ -57,11 +55,11 @@ void StepperMove_Prepare(StepperMove_t* const me, StepperProxy_t* steppers[4])
     me->d[i] = abs(StepperProxy_MM2Stps(steppers[i], me->coord[i]));
     me->steps[i] = me->d[i]/2;
   }
-  me->dm = StepperMove_max(4, me->d[0], me->d[1], me->d[2], me->d[3]);
+  me->dm = StepperMove_max(4, me->d);
   me->step = me->dm;
 }
 
-int StepperMove_Step(StepperMove_t* const me, StepperProxy_t* steppers[4])
+uint16_t StepperMove_Step(StepperMove_t* const me, StepperProxy_t* steppers[4])
 {
   if(--me->step<=0)
     return 1;
@@ -71,27 +69,22 @@ int StepperMove_Step(StepperMove_t* const me, StepperProxy_t* steppers[4])
     if(me->steps[i]<0){
       me->steps[i]+=me->dm;
       StepperProxy_Step(steppers[i]);
-      // Modify stepper position
     }
   }
   return 0;
 }
 
-int StepperMove_GetMovementLenghtInSteps(StepperMove_t* const me)
+uint32_t StepperMove_GetMovementLenghtInSteps(StepperMove_t* const me)
 {
-  int x=me->steps[0];
-  int y=me->steps[1];
-  int z=me->steps[2];
-  if(x>0xFFFF || y>0xFFFF || z>0xFFFF){
-    x/=0x100;
-    y/=0x100;
-    z/=0x100;
-    return 0x100*sqrt(x*x+y*y+z*z);
-  }
-  return sqrt(x*x+y*y+z*z);
+  int32_t x=me->steps[0];
+  int32_t y=me->steps[1];
+  int32_t z=me->steps[2];
+  uint64_t temp = x*x+y*y+z*z;
+  uint32_t ret = isqrt64(temp);
+  return ret;
 }
 
-char StepperMove_IsFinished(StepperMove_t* const me)
+bool_t StepperMove_IsFinished(StepperMove_t* const me)
 {
   return me->step<=0;
 }
