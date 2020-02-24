@@ -1,4 +1,5 @@
 #include "StepperProxy.h"
+#include "pin_mapping.h"
 
 void StepperProxy_Init(StepperProxy_t* const me){
   me->Name = STEPPER_AXIS_NULL;
@@ -19,9 +20,9 @@ void StepperProxy_Init(StepperProxy_t* const me){
 }
 
 void StepperProxy_Configure(StepperProxy_t* const me, StepperAxisType_t Name,
-                            uint16_t StepsPerRev, uint16_t Microsteps,
-                            uint16_t ThreadJumpUM, uint16_t GearRatio,
-                            uint16_t maxFeedrate,
+                            int16_t StepsPerRev, int16_t Microsteps,
+                            int16_t ThreadJumpUM, int16_t GearRatio,
+                            int16_t maxFeedrate,
                             StepperDirection_t Direction, bool_t bLinear,
                             bool_t bNeedStall, ioline_t lineStp,
                             ioline_t lineDir, ioline_t lineEn)
@@ -49,8 +50,11 @@ void StepperProxy_Configure(StepperProxy_t* const me, StepperAxisType_t Name,
   me->bNeedStall = bNeedStall;
   if(!lineStp || !lineDir || !lineEn)
     me->errorCode = STEPPER_NO_PARAMS_LINES;
+  palSetLineMode(lineStp, PAL_MODE_OUTPUT_PUSHPULL);
   me->lineStp = lineStp;
+  palSetLineMode(lineDir, PAL_MODE_OUTPUT_PUSHPULL);
   me->lineDir = lineDir;
+  palSetLineMode(lineEn, PAL_MODE_OUTPUT_PUSHPULL);
   me->lineEn = lineEn;
   StepperProxy_Disable(me);
   StepperProxy_SetDirection(me, Direction); // TODO: Think if it is needed here
@@ -86,6 +90,7 @@ void StepperProxy_ToggleDirection(StepperProxy_t* const me){
 
 void StepperProxy_Enable(StepperProxy_t* const me)
 {
+  palToggleLine(LINE_REDLED);
   if(!me->lineEn)
     me->errorCode = STEPPER_NO_PARAMS_LINES;
   else
@@ -123,7 +128,7 @@ uint32_t StepperProxy_GetMaxFeedrate(StepperProxy_t* const me){
 }
 
 float_t StepperProxy_Stps2MM(StepperProxy_t* const me, uint32_t steps){
-  return idiv(steps, me->StepsPerMM, 3);
+  return idiv(steps, me->StepsPerMM, FLOAT_PRECISION);
 }
 
 uint32_t StepperProxy_MM2Stps(StepperProxy_t* const me, float_t mm){
@@ -134,13 +139,23 @@ StepperErrorCode_t StepperProxy_GetStatus(StepperProxy_t* const me){
   return me->errorCode;
 }
 
-uint32_t StepperProxy_GetPosition(StepperProxy_t* const me)
+uint32_t StepperProxy_GetPositionInSteps(StepperProxy_t* const me)
 {
   return me->position;
 }
-void StepperProxy_SetPosition(StepperProxy_t* const me, uint32_t position)
+void StepperProxy_SetPositionInSteps(StepperProxy_t* const me, uint32_t position)
 {
   me->position = position;
+}
+
+float_t StepperProxy_GetPosition(StepperProxy_t* const me)
+{
+  return idiv(me->position, me->StepsPerMM);
+}
+
+void StepperProxy_SetPosition(StepperProxy_t* const me, float_t position)
+{
+  me->position = StepperProxy_MM2Stps(me, position);
 }
 
 StepperProxy_t* Stepper_ProxyCreate(memory_heap_t* heap){
