@@ -43,12 +43,11 @@ typedef enum {
 } StepperAxisType_t;
 
 typedef struct {
-  StepperAxisType_t Name;
+  StepperAxisType_t Axis;
   int16_t StepsPerRev;
   int16_t ThreadJumpUM; // if not linear then this is diameter
   int16_t Microsteps;
   int16_t GearRatio;
-  int16_t StepsPerMM;
   int16_t maxFeedrate; // in mm/min
   int32_t position; // in steps
   StepperDirection_t Direction;
@@ -57,18 +56,11 @@ typedef struct {
   ioline_t lineStp; // step IO line
   ioline_t lineDir; // direction IO line
   ioline_t lineEn; // enable IO line
-  StepperErrorCode_t errorCode;
+  int16_t StepsPerMM;
 } StepperProxy_t;
 
 void StepperProxy_Init(StepperProxy_t* const me);
-void StepperProxy_Configure(StepperProxy_t* const me, StepperAxisType_t Name,
-                            int16_t StepsPerRev, int16_t Microsteps,
-                            int16_t ThreadJumpUM, int16_t GearRatio,
-                            int16_t maxFeedrate,
-                            StepperDirection_t Direction, bool_t bLinear,
-                            bool_t bNeedStall, ioline_t lineStp,
-                            ioline_t lineDir, ioline_t lineEn);
-// TODO: Delete above function as it takes too many parameters on the stack
+void StepperProxy_Configure(StepperProxy_t* const me);
 
 void StepperProxy_SetDirection(StepperProxy_t* const me,
                                StepperDirection_t Direction);
@@ -82,11 +74,10 @@ bool_t StepperProxy_GetNeedStall(StepperProxy_t* const me);
 uint32_t StepperProxy_GetMaxFeedrate(StepperProxy_t* const me);
 float_t StepperProxy_Stps2MM(StepperProxy_t* const me, uint32_t steps);
 uint32_t StepperProxy_MM2Stps(StepperProxy_t* const me, float_t mm);
-StepperErrorCode_t StepperProxy_GetStatus(StepperProxy_t* const me);
 uint32_t StepperProxy_GetPositionInSteps(StepperProxy_t* const me);
 void StepperProxy_SetPositionInSteps(StepperProxy_t* const me, uint32_t position);
-float_t StepperProxy_GetPosition(StepperProxy_t* const me);
-void StepperProxy_SetPosition(StepperProxy_t* const me, float_t position);
+float_t StepperProxy_GetPositionInMM(StepperProxy_t* const me);
+void StepperProxy_SetPositionInMM(StepperProxy_t* const me, float_t position);
 
 StepperProxy_t* Stepper_ProxyCreate(memory_heap_t* heap);
 void StepperProxy_Destroy(StepperProxy_t* const me);

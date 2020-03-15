@@ -2,7 +2,7 @@
 #include "pin_mapping.h"
 
 void StepperProxy_Init(StepperProxy_t* const me){
-  me->Name = STEPPER_AXIS_NULL;
+  me->Axis = STEPPER_AXIS_NULL;
   me->StepsPerRev = 0;
   me->ThreadJumpUM = 0;
   me->Microsteps = 0;
@@ -19,46 +19,35 @@ void StepperProxy_Init(StepperProxy_t* const me){
   me->errorCode = STEPPER_NOT_CONFIGURED;
 }
 
-void StepperProxy_Configure(StepperProxy_t* const me, StepperAxisType_t Name,
-                            int16_t StepsPerRev, int16_t Microsteps,
-                            int16_t ThreadJumpUM, int16_t GearRatio,
-                            int16_t maxFeedrate,
-                            StepperDirection_t Direction, bool_t bLinear,
-                            bool_t bNeedStall, ioline_t lineStp,
-                            ioline_t lineDir, ioline_t lineEn)
+// Configures StepperProxy
+// Set ports
+// Calculate internal helper values (stepsPerMM)
+// Returns 1 if problems found
+int StepperProxy_Configure(StepperProxy_t* const me)
 {
-  if(!Name)
-    me->errorCode = STEPPER_NO_NAME;
-  me->Name = Name;
-  if(!StepsPerRev || !ThreadJumpUM || !GearRatio)
-    me->errorCode = STEPPER_NO_PARAMS_DIMENSIONS;
-  me->StepsPerRev = StepsPerRev;
-  if(!Microsteps)
-    Microsteps=1;
-  me->Microsteps = Microsteps;
-  me->ThreadJumpUM = ThreadJumpUM;
-  me->GearRatio = GearRatio;
-  me->maxFeedrate = maxFeedrate;
-  if(!Direction)
-    Direction = FORWARD;
-  me->Direction = Direction;
-  me->bLinear = bLinear;
-  if(bLinear)
-    me->StepsPerMM=StepsPerRev*Microsteps*GearRatio*1000/ThreadJumpUM;
+
+  if(!me->Name)
+    return 1;
+  if(!me->StepsPerRev || !me->ThreadJumpUM || !me->GearRatio)
+    return 1;
+  if(!me->Microsteps)
+    me->Microsteps=1;
+  if(!me->Direction)
+    me->Direction = FORWARD;
+  if(me->bLinear)
+    me->StepsPerMM=me->StepsPerRev*me->Microsteps*me->GearRatio*1000/
+      me->ThreadJumpUM;
   else
-    me->StepsPerMM=StepsPerRev*Microsteps*GearRatio*1000/ThreadJumpUM*100/314;
-  me->bNeedStall = bNeedStall;
-  if(!lineStp || !lineDir || !lineEn)
-    me->errorCode = STEPPER_NO_PARAMS_LINES;
+    me->StepsPerMM=me->StepsPerRev*me->Microsteps*me->GearRatio*1000/
+      me->ThreadJumpUM*100/314;
+  if(!me>lineStp || !me->lineDir || !me->lineEn)
+    return 1;
   palSetLineMode(lineStp, PAL_MODE_OUTPUT_PUSHPULL);
-  me->lineStp = lineStp;
   palSetLineMode(lineDir, PAL_MODE_OUTPUT_PUSHPULL);
-  me->lineDir = lineDir;
   palSetLineMode(lineEn, PAL_MODE_OUTPUT_PUSHPULL);
-  me->lineEn = lineEn;
   StepperProxy_Disable(me);
-  StepperProxy_SetDirection(me, Direction); // TODO: Think if it is needed here
-  me->errorCode = STEPPER_NOT_HOMED;
+  StepperProxy_SetDirection(me, me->Direction);
+  return 0;
 }
 
 void StepperProxy_SetDirection(StepperProxy_t* const me,
@@ -135,10 +124,6 @@ uint32_t StepperProxy_MM2Stps(StepperProxy_t* const me, float_t mm){
   return ffloor(fmulti(mm, me->StepsPerMM));
 }
 
-StepperErrorCode_t StepperProxy_GetStatus(StepperProxy_t* const me){
-  return me->errorCode;
-}
-
 uint32_t StepperProxy_GetPositionInSteps(StepperProxy_t* const me)
 {
   return me->position;
@@ -148,12 +133,12 @@ void StepperProxy_SetPositionInSteps(StepperProxy_t* const me, uint32_t position
   me->position = position;
 }
 
-float_t StepperProxy_GetPosition(StepperProxy_t* const me)
+float_t StepperProxy_GetPositionInMM(StepperProxy_t* const me)
 {
   return idiv(me->position, me->StepsPerMM);
 }
 
-void StepperProxy_SetPosition(StepperProxy_t* const me, float_t position)
+void StepperProxy_SetPositionInMM(StepperProxy_t* const me, float_t position)
 {
   me->position = StepperProxy_MM2Stps(me, position);
 }
