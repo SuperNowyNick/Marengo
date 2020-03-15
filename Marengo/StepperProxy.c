@@ -10,7 +10,7 @@ void StepperProxy_Init(StepperProxy_t* const me){
   me->StepsPerMM = 0;
   me->maxFeedrate = 0;
   me->position = 0;
-  me->Direction = NO_DIRECTION;
+  me->Direction = DIR_NONE;
   me->bLinear = FALSE;
   me->bNeedStall = FALSE;
   me->lineStp = (ioline_t)NULL;
@@ -32,8 +32,8 @@ int StepperProxy_Configure(StepperProxy_t* const me)
     return 1;
   if(!me->Microsteps)
     me->Microsteps=1;
-  if(!me->Direction)
-    me->Direction = FORWARD;
+  if(me->Direction==DIR_NONE)
+    me->Direction = DIR_FORWARD;
   if(me->bLinear)
     me->StepsPerMM=me->StepsPerRev*me->Microsteps*me->GearRatio*1000/
       me->ThreadJumpUM;
@@ -58,9 +58,9 @@ void StepperProxy_SetDirection(StepperProxy_t* const me,
   else
   {
     me->Direction = Direction;
-    if(Direction == FORWARD)
+    if(Direction == DIR_FORWARD)
       palSetLine(me->lineDir);
-    if(Direction == BACKWARD)
+    if(Direction == DIR_BACKWARD)
       palClearLine(me->lineDir);
   }
 }
@@ -70,7 +70,7 @@ StepperDirection_t StepperProxy_GetDirection(StepperProxy_t* const me){
 }
 
 void StepperProxy_ToggleDirection(StepperProxy_t* const me){
-  if(me->Direction != NO_DIRECTION) // CANNOT TOGGLE NO DIRECTION!
+  if(me->Direction != DIR_NONE) // CANNOT TOGGLE NO DIRECTION!
   {
     me->Direction = -me->Direction;
     palToggleLine(me->lineDir);
@@ -79,7 +79,6 @@ void StepperProxy_ToggleDirection(StepperProxy_t* const me){
 
 void StepperProxy_Enable(StepperProxy_t* const me)
 {
-  palToggleLine(LINE_REDLED);
   if(!me->lineEn)
     me->errorCode = STEPPER_NO_PARAMS_LINES;
   else

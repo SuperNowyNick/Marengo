@@ -16,20 +16,11 @@
 #define STEPPER_NUM 4 // Up to STEPPER_AXIS_E
 
 typedef enum {
-  NO_DIRECTION = 0,
-  FORWARD = 1,
-  BACKWARD = -1
+  DIR_NONE = 0,
+  DIR_FORWARD = 1,
+  DIR_BACKWARD = -1
 } StepperDirection_t;
 
-typedef enum {
-  STEPPER_OK,
-  STEPPER_NOT_INITIALIZED,
-  STEPPER_NOT_CONFIGURED,
-  STEPPER_NO_NAME,
-  STEPPER_NO_PARAMS_DIMENSIONS,
-  STEPPER_NO_PARAMS_LINES,
-  STEPPER_NOT_HOMED,
-} StepperErrorCode_t;
 
 typedef enum {
   STEPPER_AXIS_NULL=0,
