@@ -15,6 +15,7 @@
 
 #include "MovementQueue.h"
 #include "StepperMove.h"
+#include "StepperManager.h"
 
 // Timer and speed settings
 #define CLOCK_FREQ CH_CFG_ST_FREQUENCY
@@ -52,9 +53,9 @@ typedef struct {
 } stpEndstop_t;
 
 typedef struct {
-  signed int x;
-  signed int y;
-  signed int z;
+  int x;
+  int y;
+  int z;
   /*
   signed int a;
   signed int b;
@@ -63,23 +64,8 @@ typedef struct {
   signed int v;
   signed int w;
    */
-  signed int stpE;
+  int stpE;
 } stpCoord_t;
-
-typedef struct {
-  float_t x;
-  float_t y;
-  float_t z;
-  /*
-  float_t int a;
-  float_t int b;
-  float_t int c;
-  float_t int u;
-  float_t int v;
-  float_t int w;
-   */
-  float_t stpE;
-} stpCoordF_t;
 
 typedef struct {
   int stpX;
@@ -124,6 +110,7 @@ static stpEndstop_t stpEndstops[STP_ENDSTOPS_NUM] = {
 palcallback_t stpEndstopCallback(void *arg);
 
 void stpSetQueue(MovementQueue_t* queue);
+void stpSetManager(StepperManager_t* manager);
 
 void stpInit(void); // Init stepper motor driver
 
@@ -169,6 +156,7 @@ int stpAccel;
 int stpModeInc;
 
 MovementQueue_t* stpMovementQueue;
+StepperManager_t* stpManager;
 
 virtual_timer_t vt;
 char stpStatus;

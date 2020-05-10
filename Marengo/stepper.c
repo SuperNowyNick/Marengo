@@ -15,9 +15,9 @@
 
 void stpInit(void)
 {
-  consPrintf("Initializing steppers"CONSOLE_NEWLINE_STR);
+  //consPrintf("Initializing steppers"CONSOLE_NEWLINE_STR);
   for (int i = 0; i < STP_AXES_NUM; i++) {
-    consPrintf("Axis %c no: %d line: %d "CONSOLE_NEWLINE_STR, stpAxes[i].designation, i, stpAxes[i].line_stp);
+    //consPrintf("Axis %c no: %d line: %d "CONSOLE_NEWLINE_STR, stpAxes[i].designation, i, stpAxes[i].line_stp);
     palSetLineMode(stpAxes[i].line_dir, PAL_MODE_OUTPUT_PUSHPULL);
     palSetLineMode(stpAxes[i].line_stp, PAL_MODE_OUTPUT_PUSHPULL);
     palSetLineMode(stpAxes[i].line_en, PAL_MODE_OUTPUT_PUSHPULL);
@@ -25,11 +25,11 @@ void stpInit(void)
     palClearLine(stpAxes[i].line_dir);
     palSetLine(stpAxes[i].line_en);
   }
-  consPrintf("Initializing endstops"CONSOLE_NEWLINE_STR);
+  //consPrintf("Initializing endstops"CONSOLE_NEWLINE_STR);
   for (int i = 0; i < STP_ENDSTOPS_NUM; i++) {
-    consPrintf("Endstop on axis %c no: %d line: %d"CONSOLE_NEWLINE_STR, stpEndstops[i].designation, i, stpEndstops[i].line);
+    //consPrintf("Endstop on axis %c no: %d line: %d"CONSOLE_NEWLINE_STR, stpEndstops[i].designation, i, stpEndstops[i].line);
     palSetLineMode(stpEndstops[i].line, PAL_MODE_INPUT_PULLDOWN);
-    palSetLineCallback(stpEndstops[i].line, stpEndstopCallback, (void*)&stpEndstops[i]);
+    palSetLineCallback(stpEndstops[i].line, (palcallback_t)stpEndstopCallback, &stpEndstops[i]);
     stpEndstops[i].active = palReadLine(stpEndstops[i].line);
   }
 
@@ -96,6 +96,7 @@ palcallback_t stpEndstopCallback(void *arg)
   endstop->active = palReadLine(endstop->line);
   palTogglePad(GPIOG, GPIOG_LED4_RED);
   consPrintf("Endstop %c at end %d is %d"CONSOLE_NEWLINE_STR, endstop->designation, endstop->side, endstop->active);
+  return NULL;
 }
 
 /* Toggle direction in which the carriage moves on a given axis.*/
@@ -150,9 +151,9 @@ int stpCoordAbs(stpCoord_t coord)
     coord.x/=0x100;
     coord.y/=0x100;
     coord.z/=0x100;
-    return 0x100*sqrt(coord.x*coord.x+coord.y*coord.y+coord.z*coord.z);
+    return 0x100*isqrt32(coord.x*coord.x+coord.y*coord.y+coord.z*coord.z);
   }
-  return sqrt(coord.x*coord.x+coord.y*coord.y+coord.z*coord.z);
+  return isqrt32(coord.x*coord.x+coord.y*coord.y+coord.z*coord.z);
 }
 
 stpCoordF_t stpCoordFZero(void)
@@ -161,7 +162,7 @@ stpCoordF_t stpCoordFZero(void)
   a.x = fzero();
   a.y = fzero();
   a.z = fzero();
-  a.stpE = fzero();
+  a.e = fzero();
   return a;
 }
 stpCoordF_t stpCoordFAdd(stpCoordF_t a, stpCoordF_t b)
@@ -170,7 +171,7 @@ stpCoordF_t stpCoordFAdd(stpCoordF_t a, stpCoordF_t b)
   ret.x=fadd(a.x,b.x);
   ret.y=fadd(a.y,b.y);
   ret.z=fadd(a.z,b.z);
-  ret.stpE=fadd(a.stpE,b.stpE);
+  ret.e=fadd(a.e,b.e);
   return ret;
 }
 stpCoordF_t stpCoordFSub(stpCoordF_t a, stpCoordF_t b)
@@ -179,7 +180,7 @@ stpCoordF_t stpCoordFSub(stpCoordF_t a, stpCoordF_t b)
   ret.x=fsub(a.x,b.x);
   ret.y=fsub(a.y,b.y);
   ret.z=fsub(a.z,b.z);
-  ret.stpE=fsub(a.stpE,b.stpE);
+  ret.e=fsub(a.e,b.e);
   return ret;
 }
 
@@ -206,19 +207,14 @@ stpCoord_t* stpCoordConvMetricF2Steps(stpCoordF_t* input, stpCoord_t* output)
   output->y=temp.signum*temp.character;
   temp = fmulti(input->z, stpAxes[2].steps_per_mm);
   output->z=temp.signum*temp.character;
-  temp = fmulti(input->stpE, stpAxes[3].steps_per_mm);
+  temp = fmulti(input->e, stpAxes[3].steps_per_mm);
   output->stpE=temp.signum*temp.character;
   return output;
 }
 
 stpCoordF_t stpGetCoordF(void)
 {
-  stpCoordF_t coord;
-  coord.x=idiv(stpCurrentAbsPos.x, stpAxes[1].steps_per_mm, 2);
-  coord.y=idiv(stpCurrentAbsPos.y, stpAxes[0].steps_per_mm, 2);
-  coord.z=idiv(stpCurrentAbsPos.z, stpAxes[2].steps_per_mm, 2);
-  coord.stpE=idiv(stpCurrentAbsPos.stpE, stpAxes[3].steps_per_mm, 2);
-  return coord;
+  return StepperManager_GetPosition(stpManager);
 }
 
 int stpMoveLinearInit(stpCoordF_t end){
@@ -226,7 +222,7 @@ int stpMoveLinearInit(stpCoordF_t end){
   {
     StepperMove_t step;
     StepperMove_Init(&step);
-      StepperMove_Set(&step, end.x, end.y, end.z, end.stpE, stpFeedrate);
+      StepperMove_Set(&step, end.x, end.y, end.z, end.e, stpFeedrate);
       while(MovementQueue_Push(stpMovementQueue, &step)!=-1)
         chThdSleepMilliseconds(1);
       return 0;
@@ -366,7 +362,7 @@ int stpAccelRampLinear(int nremstep, stpCoord_t totalsteps)
   // calculate number of ramping steps
   // find speed in the main axis
   int accel = maxax->steps_per_mm*stpAccel;
-  unsigned int maxfeed = maxax->steps_per_mm;
+  int maxfeed = maxax->steps_per_mm;
   maxfeed*=stpFeedrate;
   if(maxax->designation!='E'){
     maxfeed*=maxsteps/stpCoordAbs(totalsteps);
@@ -375,11 +371,11 @@ int stpAccelRampLinear(int nremstep, stpCoord_t totalsteps)
   unsigned int ramplen = (maxfeed*maxfeed-minfeed*minfeed)/2/accel;
   // check if acceleration to desired feedrate possible?
   if(maxsteps<2*ramplen)
-    ramplen = maxsteps/2; // change the ramp lenght to halfpoint of movement
+    ramplen = maxsteps/2; // change the ramp length to halfpoint of movement
   if(maxsteps-nremstep<ramplen)
-    return CLOCK_FREQ/sqrt(2*accel*(maxsteps-nremstep)+minfeed*minfeed);
+    return CLOCK_FREQ/isqrt32(2*accel*(maxsteps-nremstep)+minfeed*minfeed);
   if(nremstep<ramplen)
-    return CLOCK_FREQ/sqrt(2*accel*(nremstep)+minfeed*minfeed);
+    return CLOCK_FREQ/isqrt32(2*accel*(nremstep)+minfeed*minfeed);
    return CLOCK_FREQ/maxfeed;
 }
 
