@@ -2,7 +2,7 @@
 
 #include "console.h"
 
-#define FLOAT_PRECISION 3
+#define FLOAT_PRECISION 5
 
 typedef struct {
     signed char signum;
@@ -19,6 +19,7 @@ float_t fidiv(float_t a, int b, signed char precision);
 float_t fadd(float_t a, float_t b);
 float_t fsub(float_t a, float_t b);
 float_t fmulti(float_t a, int b);
+// TODO Add floats multiplication with carry flag
 float_t fabs(float_t a);
 float_t fzero(void);
 float_t fcmp(float_t a, float_t b);

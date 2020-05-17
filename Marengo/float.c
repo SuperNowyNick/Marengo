@@ -137,7 +137,7 @@ float_t fsub(float_t a, float_t b)
 
 float_t myatof(char* str)
 {
-    float_t result = { 1,0,0,0 };
+    float_t result = { 1,0,0,FLOAT_PRECISION };
     int i = 0;
     if (str[i] == '-')
     {
@@ -262,7 +262,7 @@ float_t fzero(void)
   a.signum=1;
   a.character=0;
   a.mantisa=0;
-  a.precision=0;
+  a.precision=FLOAT_PRECISION;
   return a;
 }
 
