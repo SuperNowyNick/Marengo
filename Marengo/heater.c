@@ -17,7 +17,7 @@ static const ADCConversionGroup adccg1 =
        0, // CR1 REG
        ADC_CR2_SWSTART, // CR2 REG
        0, // SMPR1 reg
-       ADC_SMPR2_SMP_AN4(ADC_SAMPLE_480), // SMPR2 reg
+       ADC_SMPR2_SMP_AN4(ADC_SAMPLE_3), // SMPR2 reg
        0,  // htr reg
        0,  // ltr reg
        0, // SQR1 REG
@@ -32,8 +32,8 @@ static const ADCConversionGroup adccg2 =
        NULL, // callback err func
        0, // CR1 REG
        ADC_CR2_SWSTART, // CR2 REG
-       0, // SMPR1 reg
-       ADC_SMPR2_SMP_AN4(ADC_SAMPLE_480), // SMPR2 reg
+       ADC_SMPR1_SMP_AN13(ADC_SAMPLE_3), // SMPR1 reg
+       0, // SMPR2 reg
        0,  // htr reg
        0,  // ltr reg
        0, // SQR1 REG
@@ -135,9 +135,16 @@ void heaterPushADC(heater_t *heater, int adcData)
 }
 int heaterReadADC(heater_t *heater)
 {
-  adcConvert(heater->adcd, heater->adcg, heater->adcSampleBuf, HEATER_ADC_SAMPLE_BUF_DEPTH);
-  heaterPushADC(heater, heater->adcSampleBuf[0]);
-  return heater->adcSampleBuf[0];
+  while(MSG_OK != adcConvert(heater->adcd, heater->adcg, heater->adcSampleBuf,
+                             HEATER_ADC_SAMPLE_BUF_DEPTH))
+
+  {}
+  int64_t mean=0;
+  for(int i=0;i<HEATER_ADC_SAMPLE_BUF_DEPTH; i++)
+    mean+=heater->adcSampleBuf[i];
+  mean/=HEATER_ADC_SAMPLE_BUF_DEPTH;
+  heaterPushADC(heater, mean);
+  return mean;
 }
 int heaterGetADC(heater_t *heater)
 {
@@ -210,7 +217,7 @@ static THD_FUNCTION(HeaterThread, arg) {
   while(1){
     heaterPIDRoutine(&Heater1);
     heaterPIDRoutine(&Heater2);
-    chThdSleepMilliseconds(1000);
+    chThdSleepMilliseconds(100);
   }
 }
 

@@ -14,7 +14,7 @@
 #include "pin_mapping.h"
 
 #define HEATER_ADC_SAMPLE_CHAN_NUM 1
-#define HEATER_ADC_SAMPLE_BUF_DEPTH 1
+#define HEATER_ADC_SAMPLE_BUF_DEPTH 128
 #define HEATER_ADC_DATA_BUF_DEPTH 16
 
 
