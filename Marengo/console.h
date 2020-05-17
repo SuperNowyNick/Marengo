@@ -45,7 +45,7 @@ typedef struct {
 } ConsoleCmd;
 
 struct{
-  BaseSequentialStream *Stream; // ChibiOS stream acting as input
+  BaseAsynchronousChannel *Stream; // ChibiOS channel acting as input
   GHandle Win; // uGFX handle to window acting as console
   const ConsoleCmd *cmds;
 } consConfig;
@@ -55,7 +55,7 @@ thread_t* consThread;
 char *consHistory[CONSOLE_HISTORY_SIZE];
 int consHistoryStart;
 int consHistorySize;
-char* consHistoryGetLast();
+char* consHistoryGetLast(void);
 char* consHistoryGet(int n);
 void consHistoryPut(char *line);
 

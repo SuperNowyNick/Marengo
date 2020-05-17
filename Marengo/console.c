@@ -20,7 +20,7 @@ int consPrintf(const char *fmt, ...){
   int formatted_bytes;
 
   va_start(ap, fmt);
-  formatted_bytes = chvprintf(consConfig.Stream, fmt, ap);
+  formatted_bytes = chvprintf((BaseSequentialStream*)consConfig.Stream, fmt, ap);
   if(gwinGetVisible(consConfig.Win)==TRUE)
       gwinvPrintf(consConfig.Win, fmt, ap); // This function has been added to gwin_console.c
   va_end(ap);
@@ -31,7 +31,7 @@ int consPrintf(const char *fmt, ...){
 }
 
 void consPutChar(char c){
-  streamPut(consConfig.Stream, c);
+  chnPutTimeout(consConfig.Stream, c, TIME_INFINITE);
   gwinPutChar(consConfig.Win, c);
 }
 
@@ -77,18 +77,18 @@ bool consGetLine(char *line, unsigned size){
   int histn=0;
   while(true){
     char c;
-    if (streamRead(consConfig.Stream, (uint8_t *)&c, 1) == 0)
-      return true;
+    if (chnReadTimeout(consConfig.Stream, (uint8_t *)&c, 1, TIME_INFINITE) == 0)
+      return false;
     if (c == 4) {
       consPrintf("^D");
       return true;
     }
     if((c==27)) // escape characters
     {
-      if (streamRead(consConfig.Stream, (uint8_t *)&c, 1) == 0)
+      if (chnRead(consConfig.Stream, (uint8_t *)&c, 1) == 0)
         return true;
       if(c=='[')
-        if (streamRead(consConfig.Stream, (uint8_t *)&c, 1) == 0)
+        if (chnRead(consConfig.Stream, (uint8_t *)&c, 1) == 0)
           return true;
       if(isdigit(c)){
         char val_buf[16];
@@ -97,7 +97,7 @@ bool consGetLine(char *line, unsigned size){
           val_buf[i] = c;
           i++;
         }
-        while(streamRead(consConfig.Stream, (uint8_t *)&c, 1) != 0 && isdigit(c));
+        while(chnRead(consConfig.Stream, (uint8_t *)&c, 1) != 0 && isdigit(c));
         esc_value = atoi(val_buf, 10);
       }
       // clear line
@@ -222,15 +222,21 @@ static THD_FUNCTION(ConsoleThread, arg) {
   consPrintf("\r\nMarengo Console\r\n");
 
   char line[CONSOLE_MAX_LINE_LENGTH];
+  char initcmd[6] = "gcode";
+  char* inittokens[1];
+  inittokens[0] = initcmd;
+  consExec(consConfig.cmds, 1, inittokens);
 
+  consPrintf(CONSOLE_NEWLINE_STR);
+  consPrintf(CONSOLE_PROMPT_STR);
   while (1) {
-    consPrintf(CONSOLE_PROMPT_STR);
+
     if(consGetLine(line, sizeof(line))){
       consPrintf(CONSOLE_NEWLINE_STR);
       consPrintf("Marengo console exit");
       break;
     }
-    else if(line!=0)
+    else if(line[0]!=0)
     {
       // Add line to history
       consHistoryPut(line);
@@ -245,6 +251,9 @@ static THD_FUNCTION(ConsoleThread, arg) {
         if(consExec(consConfig.cmds, argc, tokens))
           consPrintf("No such function %s"CONSOLE_NEWLINE_STR, tokens[0]);
       }
+      consPrintf(CONSOLE_NEWLINE_STR);
+      consPrintf(CONSOLE_PROMPT_STR);
+      memset(line, 0,sizeof(line));
     }
     chThdSleepMilliseconds(100);
   }
