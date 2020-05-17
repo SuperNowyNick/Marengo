@@ -27,10 +27,12 @@ void StepperMove_Init(StepperMove_t* const me)
     me->d[i]=0;
     me->direction[i]=0;
     me->steps[i]=0;
+    me->coord[i] = fzero();
   }
   me->feedrate=0;
   me->step=0;
   me->dm = 0;
+  me->length = 0;
 }
 
 void StepperMove_Set(StepperMove_t* const me, float_t x, float_t y, float_t z,
@@ -46,17 +48,23 @@ void StepperMove_Set(StepperMove_t* const me, float_t x, float_t y, float_t z,
 
 void StepperMove_Prepare(StepperMove_t* const me, StepperProxy_t* steppers[4])
 {
-  // Enable needed stepper motors
+
   for(int i=0; i<4; i++)
   {
-    if(fnonzero(me->coord[i])) StepperProxy_Enable(steppers[i]);
     me->direction[i] = fneg(me->coord[i]) ? -1 : 1;
-    StepperProxy_SetDirection(steppers[i], me->direction[i]);
     me->d[i] = abs(StepperProxy_MM2Stps(steppers[i], me->coord[i]));
     me->steps[i] = me->d[i]/2;
   }
   me->dm = StepperMove_max(4, me->d);
   me->step = me->dm;
+  me->length = StepperMove_GetMovementLenghtInSteps(me);
+}
+int32_t StepperMove_GetFeedrateToAxisProjection(StepperMove_t* const me,
+                                                StepperAxisType_t axis)
+{
+  int32_t val = me->feedrate*me->d[axis];
+  val /= me->length;
+  return val;
 }
 
 uint16_t StepperMove_Step(StepperMove_t* const me, StepperProxy_t* steppers[4])
@@ -76,11 +84,12 @@ uint16_t StepperMove_Step(StepperMove_t* const me, StepperProxy_t* steppers[4])
 
 uint32_t StepperMove_GetMovementLenghtInSteps(StepperMove_t* const me)
 {
-  int32_t x=me->steps[0];
-  int32_t y=me->steps[1];
-  int32_t z=me->steps[2];
+  int32_t x=me->d[0];
+  int32_t y=me->d[1];
+  int32_t z=me->d[2];
   uint64_t temp = x*x+y*y+z*z;
   uint32_t ret = isqrt64(temp);
+  me->length = ret;
   return ret;
 }
 
