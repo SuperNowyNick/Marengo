@@ -5,7 +5,7 @@ N/C                 N/C
 IOREF               N/C
 RESET               NRST
 3.3V                N/C
-5V                  3.3V
+5V                  3.3V (POWER SUPPLY)
 GND                 N/C
 GND                 GND
 VIN                 N/C

@@ -39,8 +39,8 @@
 
 // Intrinsic STM32F429i board peripherals
 
-#define LINE_REDLED                 PAL_LINE(GPIOG, 13U)
-#define LINE_GREENLED               PAL_LINE(GPIOG, 14U)
+#define LINE_GREENLED               PAL_LINE(GPIOG, 13U)
+#define LINE_REDLED                 PAL_LINE(GPIOG, 14U)
 #define LINE_USERBUTTON             PAL_LINE(GPIOA, 0U)
 
 // ESP8266 pins (USART1)
