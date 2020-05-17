@@ -9,6 +9,7 @@
 #define MARENGO_GUI_H_
 
 #include "gfx.h"
+#include "gui/dialwidget.h"
 
 typedef struct {
 	char* name;

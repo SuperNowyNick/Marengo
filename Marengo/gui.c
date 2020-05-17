@@ -31,7 +31,6 @@ void guiInit(void)
   gwinSetDefaultFont(gdispOpenFont("fixed_10x20"));
   gwinSetDefaultStyle(&guiWidgetStyle, FALSE);
 
-  gwinAttachMouse(0);
   guiCreateWidgets();
   guiConsoleConf_t guiConsoleConf = { "Marengo Console", NULL, NULL, NULL };
   guiConsoleCreate(guiConsoleConf);
@@ -882,24 +881,22 @@ void guiTemperatureMenuCreate(void)
 	wi.g.show = TRUE;
 	wi.g.width = 64;
 	wi.g.x = 4;
-	wi.g.height = 28;
+	wi.g.height = 64;
 	wi.g.y = 192;
 	wi.g.parent = guiTemperatureMenuHandle;
 	wi.text = "0 deg";
-	wi.customDraw = gwinLabelDrawJustifiedLeft;
-	guiTemperatureMenuHeatbedCurrentTempValue = gwinLabelCreate(NULL, &wi);
+	guiTemperatureMenuHeatbedCurrentTempValue = DialWidgetCreate(NULL, &wi);
 
 	//Add set extruder temp value
 	gwinWidgetClearInit(&wi);
 	wi.g.show = TRUE;
 	wi.g.width = 64;
 	wi.g.x = 128;
-	wi.g.height = 28;
+	wi.g.height = 64;
 	wi.g.y = 192;
 	wi.g.parent = guiTemperatureMenuHandle;
 	wi.text = "0 deg";
-	wi.customDraw = gwinLabelDrawJustifiedLeft;
-	guiTemperatureMenuHeatbedSetTempValue = gwinLabelCreate(NULL, &wi);
+	guiTemperatureMenuHeatbedSetTempValue = DialWidgetCreate(NULL, &wi);
 
 	// Add + heatbed temperature button
 	gwinWidgetClearInit(&wi);
