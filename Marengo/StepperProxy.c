@@ -16,7 +16,6 @@ void StepperProxy_Init(StepperProxy_t* const me){
   me->lineStp = (ioline_t)NULL;
   me->lineDir = (ioline_t)NULL;
   me->lineEn = (ioline_t)NULL;
-  me->errorCode = STEPPER_NOT_CONFIGURED;
 }
 
 // Configures StepperProxy
@@ -25,8 +24,7 @@ void StepperProxy_Init(StepperProxy_t* const me){
 // Returns 1 if problems found
 int StepperProxy_Configure(StepperProxy_t* const me)
 {
-
-  if(!me->Name)
+  if(!me->Axis)
     return 1;
   if(!me->StepsPerRev || !me->ThreadJumpUM || !me->GearRatio)
     return 1;
@@ -40,11 +38,11 @@ int StepperProxy_Configure(StepperProxy_t* const me)
   else
     me->StepsPerMM=me->StepsPerRev*me->Microsteps*me->GearRatio*1000/
       me->ThreadJumpUM*100/314;
-  if(!me>lineStp || !me->lineDir || !me->lineEn)
+  if(!me->lineStp || !me->lineDir || !me->lineEn)
     return 1;
-  palSetLineMode(lineStp, PAL_MODE_OUTPUT_PUSHPULL);
-  palSetLineMode(lineDir, PAL_MODE_OUTPUT_PUSHPULL);
-  palSetLineMode(lineEn, PAL_MODE_OUTPUT_PUSHPULL);
+  palSetLineMode(me->lineStp, PAL_MODE_OUTPUT_PUSHPULL);
+  palSetLineMode(me->lineDir, PAL_MODE_OUTPUT_PUSHPULL);
+  palSetLineMode(me->lineEn, PAL_MODE_OUTPUT_PUSHPULL);
   StepperProxy_Disable(me);
   StepperProxy_SetDirection(me, me->Direction);
   return 0;
@@ -53,9 +51,7 @@ int StepperProxy_Configure(StepperProxy_t* const me)
 void StepperProxy_SetDirection(StepperProxy_t* const me,
                                StepperDirection_t Direction)
 {
-  if(!me->lineDir)
-    me->errorCode = STEPPER_NO_PARAMS_LINES;
-  else
+  if(me->lineDir)
   {
     me->Direction = Direction;
     if(Direction == DIR_FORWARD)
@@ -79,9 +75,7 @@ void StepperProxy_ToggleDirection(StepperProxy_t* const me){
 
 void StepperProxy_Enable(StepperProxy_t* const me)
 {
-  if(!me->lineEn)
-    me->errorCode = STEPPER_NO_PARAMS_LINES;
-  else
+  if(me->lineEn)
   {
     palClearLine(me->lineEn);
   }
@@ -89,17 +83,13 @@ void StepperProxy_Enable(StepperProxy_t* const me)
 
 void StepperProxy_Disable(StepperProxy_t* const me)
 {
-  if(!me->lineEn)
-    me->errorCode = STEPPER_NO_PARAMS_LINES;
-  else
+  if(me->lineEn)
     palSetLine(me->lineEn);
 }
 
 void StepperProxy_Step(StepperProxy_t* const me)
 {
-  if(!me->lineStp)
-    me->errorCode = STEPPER_NO_PARAMS_LINES;
-  else
+  if(me->lineStp)
   {
     palToggleLine(me->lineStp);
     me->position+=me->Direction;
@@ -134,7 +124,7 @@ void StepperProxy_SetPositionInSteps(StepperProxy_t* const me, uint32_t position
 
 float_t StepperProxy_GetPositionInMM(StepperProxy_t* const me)
 {
-  return idiv(me->position, me->StepsPerMM);
+  return idiv(me->position, me->StepsPerMM, 3);
 }
 
 void StepperProxy_SetPositionInMM(StepperProxy_t* const me, float_t position)

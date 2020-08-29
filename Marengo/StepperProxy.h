@@ -13,6 +13,7 @@
 #include "float.h"
 #include "EndstopProxy.h"
 
+// TODO: Move this to stepper_manager?
 #define STEPPER_NUM 4 // Up to STEPPER_AXIS_E
 
 typedef enum {
@@ -51,7 +52,7 @@ typedef struct {
 } StepperProxy_t;
 
 void StepperProxy_Init(StepperProxy_t* const me);
-void StepperProxy_Configure(StepperProxy_t* const me);
+int StepperProxy_Configure(StepperProxy_t* const me);
 
 void StepperProxy_SetDirection(StepperProxy_t* const me,
                                StepperDirection_t Direction);
