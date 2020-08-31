@@ -8,8 +8,6 @@
 #ifndef MARENGO_MARENGO_H_
 #define MARENGO_MARENGO_H_
 
-#include "Stepper.h"
-
 typedef enum mar_state_t {
   MARENGO_IDLE,
   MARENGO_INITIALIZING,

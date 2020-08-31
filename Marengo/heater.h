@@ -73,7 +73,7 @@ void heaterClenup(void);
 thread_t* heatThread;
 
 
-static Heater1LookupTable[44] = {70,300,
+static int Heater1LookupTable[44] = {70,300,
                                  94,280,
                                  127,260,
                                  175,240,

@@ -6,8 +6,8 @@ IOREF               N/C
 RESET               NRST
 3.3V                N/C
 5V                  3.3V (POWER SUPPLY)
-GND                 N/C
 GND                 GND
+GND                 N/C
 VIN                 N/C
 
 A0  X-STEP              PC13

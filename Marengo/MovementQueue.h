@@ -8,7 +8,7 @@
 #ifndef MARENGO_MOVEMENTQUEUE_H_
 #define MARENGO_MOVEMENTQUEUE_H_
 
-#define MOVEMENT_QUEUE_SIZE 16
+#define MOVEMENT_QUEUE_SIZE 1
 
 #include "StepperMove.h"
 #include "ch.h"
