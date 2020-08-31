@@ -7,9 +7,9 @@
 
 #include "gui.h"
 #include "heater.h"
-#include "stepper.h"
+#include "coord.h"
 
-void guiInit(void)
+void guiInit()
 {
   /* Init screen.*/
   gfxSleepMilliseconds (100);
@@ -32,7 +32,7 @@ void guiInit(void)
   gwinSetDefaultStyle(&guiWidgetStyle, FALSE);
 
   guiCreateWidgets();
-  guiConsoleConf_t guiConsoleConf = { "Marengo Console", NULL, NULL, NULL };
+  guiConsoleConf_t guiConsoleConf = { "Marengo Console", 0, 0, NULL };
   guiConsoleCreate(guiConsoleConf);
   guiConsoleHide();
 
@@ -40,13 +40,19 @@ void guiInit(void)
   guiMainMenuShow();
 
   guibInitialised = TRUE;
+  stpManager = NULL;
 }
+void guiSetStepperManager(StepperManager_t* stpman)
+{
+  stpManager = stpman;
+}
+
 void guiProgressBarIncrement(void)
 {
 	gwinProgressbarIncrement(guiStatusWindowProgressBar);
 	// TODO: Change value on guiStatusWindowProgressVal
 }
-void guiCreateWidgets(void){
+static void guiCreateWidgets(void){
 	guiMainMenuCreate();
   guiStatusWindowCreate();
   guiMotionMenuCreate();
@@ -54,11 +60,11 @@ void guiCreateWidgets(void){
   guiWifiMenuCreate();
   guiSettingsMenuCreate();
 }
-void guiConsoleCreate(guiConsoleConf_t config){
+static void guiConsoleCreate(guiConsoleConf_t config){
   // TODO: Use containers!
-  if(config.height == NULL)
+  if(config.height == 0)
     config.height = guiWindowHeight;
-  if(config.width == NULL)
+  if(config.width == 0)
     config.width = guiWindowWidth;
   if(config.font == NULL)
     config.font = gdispOpenFont("fixed_5x8");
@@ -94,14 +100,15 @@ void guiConsoleCreate(guiConsoleConf_t config){
   wi.customDraw = gwinLabelDrawJustifiedCenter;
   guiConsoleTitleHandle = gwinLabelCreate(NULL, &wi);
   // Create our console window
-  gwinWidgetClearInit(&wi);
-  wi.g.show = TRUE;
-  wi.g.x = 0;
-  wi.g.y = bHeight;
-  wi.g.width = guiWindowWidth;
-  wi.g.height = guiWindowHeight-bHeight-40;
-  wi.g.parent = guiConsoleContainerHandle;
-  guiConsoleHandle = gwinConsoleCreate(NULL, &wi);
+  GWindowInit wini;
+  gwinClearInit(&wini);
+  wini.show = TRUE;
+  wini.x = 0;
+  wini.y = bHeight;
+  wini.width = guiWindowWidth;
+  wini.height = guiWindowHeight-bHeight-40;
+  wini.parent = guiConsoleContainerHandle;
+  guiConsoleHandle = gwinConsoleCreate(NULL, &wini);
   gwinSetFont(guiConsoleHandle, guiConsoleConf.font);
   // Add return button
   gwinSetDefaultFont(gdispOpenFont("UI2"));
@@ -117,48 +124,55 @@ void guiConsoleCreate(guiConsoleConf_t config){
   wi.customDraw = gwinButtonDraw_Rounded;
   guiConsoleButtonHandle = gwinButtonCreate(NULL, &wi);
 }
-void guiConsoleShow(void)
+static void guiConsoleShow(void)
 {
   gwinShow(guiConsoleContainerHandle);
 }
-void guiConsoleHide(void)
+static void guiConsoleHide(void)
 {
 	gwinHide(guiConsoleContainerHandle);
 }
-void guiStatusWindowShow(void)
+static void guiStatusWindowShow(void)
 {
 	gwinShow(guiStatusWindow);
 }
-void guiStatusWindowHide(void)
+static void guiStatusWindowHide(void)
 {
 	gwinHide(guiStatusWindow);
 }
-void guiMotionMenuShow(void) {
+static void guiMotionMenuShow(void)
+{
 	gwinShow(guiMotionMenuHandle);
 }
-void guiMotionMenuHide(void)
+static void guiMotionMenuHide(void)
 {
 	gwinHide(guiMotionMenuHandle);
 }
-void guiTemperatureMenuShow(void) {
+static void guiTemperatureMenuShow(void)
+{
 	gwinShow(guiTemperatureMenuHandle);
 }
-void guiTemperatureMenuHide(void) {
+static void guiTemperatureMenuHide(void)
+{
 	gwinHide(guiTemperatureMenuHandle);
 }
-void guiWiFiMenuShow(void) {
+static void guiWiFiMenuShow(void)
+{
 	gwinShow(guiWiFiMenuHandle);
 }
-void guiWiFiMenuHide(void) {
+static void guiWiFiMenuHide(void)
+{
 	gwinHide(guiWiFiMenuHandle);
 }
-void guiSettingsMenuShow(void) {
+static void guiSettingsMenuShow(void)
+{
 	gwinShow(guiSettingsMenuHandle);
 }
-void guiSettingsMenuHide(void) {
+static void guiSettingsMenuHide(void)
+{
 	gwinHide(guiSettingsMenuHandle);
 }
-void guiMainMenuShow(void)
+static void guiMainMenuShow(void)
 {
 	gwinShow(guiMainMenuHandle);
 }
@@ -167,7 +181,7 @@ GHandle guiConsoleGetWinHandle(void)
   return guiConsoleHandle;
 }
 
-void guiMainMenuCreate(void)
+static void guiMainMenuCreate(void)
 {
   // Create container
   GWidgetInit             wi;
@@ -241,7 +255,7 @@ void guiMainMenuCreate(void)
   wi.customDraw = gwinButtonDraw_Rounded;
   guiMainMenuSettingsButtonHandle = gwinButtonCreate(NULL, &wi);
 }
-void guiStatusWindowCreate(void)
+static void guiStatusWindowCreate(void)
 {
 	// Create container
 	GWidgetInit             wi;
@@ -486,7 +500,7 @@ void guiStatusWindowCreate(void)
 	guiStatusWindowReturnButton = gwinButtonCreate(NULL, &wi);
 
 }
-void guiMotionMenuCreate(void)
+static void guiMotionMenuCreate(void)
 {
 	// Create container
 	GWidgetInit             wi;
@@ -743,7 +757,7 @@ void guiMotionMenuCreate(void)
 	wi.customDraw = gwinButtonDraw_Rounded;
 	guiMotionMenuButtonReturn = gwinButtonCreate(NULL, &wi);
 }
-void guiTemperatureMenuCreate(void)
+static void guiTemperatureMenuCreate(void)
 {
 	// Create container
 	GWidgetInit             wi;
@@ -935,7 +949,7 @@ void guiTemperatureMenuCreate(void)
 	wi.customDraw = gwinButtonDraw_Rounded;
 	guiTemperatureMenuReturnButtonHandle = gwinButtonCreate(NULL, &wi);
 }
-void guiWifiMenuCreate(void)
+static void guiWifiMenuCreate(void)
 {
 	// Create container
 	GWidgetInit             wi;
@@ -961,7 +975,7 @@ void guiWifiMenuCreate(void)
 	guiWiFiMenuReturnButtonHandle = gwinButtonCreate(NULL, &wi);
 	// TODO: Add code here to initialize wifi control menu
 }
-void guiSettingsMenuCreate(void)
+static void guiSettingsMenuCreate(void)
 {
 	// Create container
 	GWidgetInit             wi;
@@ -1014,6 +1028,7 @@ threadreturn_t guiThread(void* param)
 		case GEVENT_GWIN_BUTTON:
 			gwin = ((GEventGWinButton*)pe)->gwin;
 			// Menu buttons
+			// TODO: Change this to switch if possible
 			if (gwin == guiMainMenuStatusButtonHandle) { guiStatusWindowShow(); };
 			if (gwin == guiMainMenuMotionButtonHandle) { guiMotionMenuShow(); }
 			if (gwin == guiMainMenuTemperatureButtonHandle) { guiTemperatureMenuShow(); }
@@ -1027,9 +1042,16 @@ threadreturn_t guiThread(void* param)
 			if (gwin == guiWiFiMenuReturnButtonHandle) { guiWiFiMenuHide(); }
 			if (gwin == guiSettingsMenuReturnButtonHandle) { guiSettingsMenuHide(); }
 			// Status window buttons
-			if (gwin == guiStatusWindowStopButton) { stpStop(); }
+			if (gwin == guiStatusWindowStopButton) {
+              if(stpManager!=NULL)
+                StepperManager_StopISR(stpManager);
+			}
 			// Motion menu window buttons
-			if (gwin == guiMotionMenuButtonSetHome) { stpSetHome(); }
+			if (gwin == guiMotionMenuButtonSetHome) {
+			  if(stpManager!=NULL)
+			    StepperManager_SetPosition(stpManager, stpCoordF_Zero());
+			  // TODO: This should also change state of gcode interpreter!
+			}
 			break;
 		default:
 			break;
@@ -1038,11 +1060,20 @@ threadreturn_t guiThread(void* param)
         // Update labels
 		// Status menu labels
 		// TODO: Update status of stepper motors
-		stpCoordF_t coord = stpGetCoordF();
+		stpCoordF_t coord;
+		uint32_t feedrate;
+		if(stpManager!=NULL){
+		  coord = StepperManager_GetPosition(stpManager);
+		  feedrate = StepperManager_GetCurrentFeedrate(stpManager);
+		}
+		else{
+		  coord = stpCoordF_Zero();
+		  feedrate = 0;
+		}
 		gwinSetText(guiStatusWindowCoordX, myftoa(coord.x, buf), TRUE);
 		gwinSetText(guiStatusWindowCoordY, myftoa(coord.y, buf), TRUE);
 		gwinSetText(guiStatusWindowCoordZ, myftoa(coord.z, buf), TRUE);
-		gwinSetText(guiStatusWindowFeedrate, itoa(stpGetFeedrate(),
+		gwinSetText(guiStatusWindowFeedrate, (const char*)itoa(feedrate,
 		                                          buf, 10), TRUE);
 		// TODO: Calculate elasped time
 		// TODO: Calculate remaining time

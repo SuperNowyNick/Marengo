@@ -22,7 +22,7 @@ static uint32_t StepperMove_max(uint16_t argc, uint32_t* table)
 
 void StepperMove_Init(StepperMove_t* const me)
 {
-  for(int i=0;i<4;i++)
+  for(int i=0;i<STEPPER_NUM;i++)
   {
     me->d[i]=0;
     me->direction[i]=0;
@@ -30,7 +30,7 @@ void StepperMove_Init(StepperMove_t* const me)
     me->coord[i] = fzero();
   }
   me->feedrate=0;
-  me->step=0;
+  me->step=-1; // -1 means completion, 0 is valid step
   me->dm = 0;
   me->length = 0;
 }
@@ -46,19 +46,35 @@ void StepperMove_Set(StepperMove_t* const me, float_t x, float_t y, float_t z,
   me->feedrate = f;
 }
 
-void StepperMove_Prepare(StepperMove_t* const me, StepperProxy_t* steppers[4])
+stpCoordF_t StepperMove_GetDestination(StepperMove_t* const me)
 {
+  stpCoordF_t temp;
+  temp.x = me->coord[0];
+  temp.y = me->coord[1];
+  temp.z = me->coord[2];
+  temp.e = me->coord[3];
+  return temp;
+}
 
-  for(int i=0; i<4; i++)
+void StepperMove_Prepare(StepperMove_t* const me, stpCoord_t steps)
+{
+  me->d[0] = abs(steps.x);
+  me->d[1] = abs(steps.y);
+  me->d[2] = abs(steps.z);
+  me->d[3] = abs(steps.e);
+  me->direction[0] = steps.x < 0 ? -1 : 1;
+  me->direction[1] = steps.y < 0 ? -1 : 1;
+  me->direction[2] = steps.z < 0 ? -1 : 1;
+  me->direction[3] = steps.e < 0 ? -1 : 1;
+  for(int i=0; i<STEPPER_NUM; i++)
   {
-    me->direction[i] = fneg(me->coord[i]) ? -1 : 1;
-    me->d[i] = abs(StepperProxy_MM2Stps(steppers[i], me->coord[i]));
     me->steps[i] = me->d[i]/2;
   }
-  me->dm = StepperMove_max(4, me->d);
+  me->dm = StepperMove_max(STEPPER_NUM, me->d);
   me->step = me->dm;
   me->length = StepperMove_GetMovementLenghtInSteps(me);
 }
+
 int32_t StepperMove_GetFeedrateToAxisProjection(StepperMove_t* const me,
                                                 StepperAxisType_t axis)
 {
@@ -69,9 +85,9 @@ int32_t StepperMove_GetFeedrateToAxisProjection(StepperMove_t* const me,
 
 uint16_t StepperMove_Step(StepperMove_t* const me, StepperProxy_t* steppers[4])
 {
-  if(--me->step<=0)
+  if(--me->step<0)
     return 1;
-  for(int i=0;i<4;i++)
+  for(int i=0;i<STEPPER_NUM;i++)
   {
     me->steps[i]-=me->d[i];
     if(me->steps[i]<0){
@@ -82,6 +98,7 @@ uint16_t StepperMove_Step(StepperMove_t* const me, StepperProxy_t* steppers[4])
   return 0;
 }
 
+// TODO: What if we also add rotation axes?
 uint32_t StepperMove_GetMovementLenghtInSteps(StepperMove_t* const me)
 {
   int32_t x=me->d[0];
@@ -95,9 +112,13 @@ uint32_t StepperMove_GetMovementLenghtInSteps(StepperMove_t* const me)
 
 bool_t StepperMove_IsFinished(StepperMove_t* const me)
 {
-  return me->step<=0;
+  return me->step<0;
 }
 
+uint32_t StepperMove_GetFeedrate(StepperMove_t* const me)
+{
+  return me->feedrate;
+}
 StepperMove_t* StepperMove_Create(memory_heap_t* heap)
 {
   StepperMove_t* me = (StepperMove_t*)chHeapAlloc(heap, sizeof(StepperMove_t));

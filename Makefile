@@ -40,12 +40,16 @@ endif
 
 ARCH     = arm-none-eabi-
 SRCFLAGS = -O0 -ggdb -fomit-frame-pointer -falign-functions=16
-CFLAGS   = 
+CFLAGS   = -Wno-unused-variable -Wno-unused-parameter
 CXXFLAGS = -fno-rtti
 ASFLAGS  =
 LDFLAGS  = -O0
 
-SRC      = Marengo/console.c Marengo/stepper.c Marengo/gcode.c Marengo/marengo.c Marengo/heater.c Marengo/gui.c Marengo/float.c
+SRC      = Marengo/console.c Marengo/gcode.c Marengo/coord.c \
+		   Marengo/marengo.c Marengo/heater.c Marengo/gui.c \
+		   Marengo/float.c Marengo/StepperProxy.c Marengo/EndstopProxy.c \
+		   Marengo/StepperManager.c Marengo/MovementQueue.c \
+		   Marengo/StepperMove.c Marengo/gui/dialwidget.c
 OBJS     = 
 DEFS     =
 LIBS     =

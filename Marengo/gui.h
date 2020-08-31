@@ -10,6 +10,7 @@
 
 #include "gfx.h"
 #include "gui/dialwidget.h"
+#include "StepperManager.h"
 
 typedef struct {
 	char* name;
@@ -70,6 +71,7 @@ static GHandle                  guiMainMenuTemperatureButtonHandle;
 static GHandle                  guiMainMenuWifiButtonHandle;
 static GHandle                  guiMainMenuConsoleButtonHandle;
 static GHandle                  guiMainMenuSettingsButtonHandle;
+static void guiMainMenuShow(void);
 
 // Status window
 static GHandle				    guiStatusWindow;
@@ -94,6 +96,9 @@ static GProgressbarObject *		guiStatusWindowProgressBarObj;
 static GHandle                  guiStatusWindowActiveCommand;
 static GHandle                  guiStatusWindowCmds2Go;
 static GHandle                  guiStatusWindowReturnButton;
+static void guiStatusWindowCreate(void);
+static void guiStatusWindowShow(void);
+static void guiStatusWindowHide(void);
 
 void guiProgressBarIncrement(void);
 
@@ -120,6 +125,9 @@ static GHandle					guiMotionMenuYCoordRel;
 static GHandle					guiMotionMenuZCoordRel;
 static GHandle					guiMotionMenuAbsoluteLabel;
 static GHandle					guiMotionMenuRelativeLabel;
+static void guiMotionMenuCreate(void);
+static void guiMotionMenuShow(void);
+static void guiMotionMenuHide(void);
 
 // Temperature menu
 static GHandle					guiTemperatureMenuHandle;
@@ -138,16 +146,25 @@ static GHandle					guiTemperatureMenuHeatbedSetTempValue;
 static GHandle					guiTemperatureMenuHeatbedSetTempUpButton;
 static GHandle					guiTemperatureMenuHeatbedSetTempDownButton;
 static GHandle					guiTemperatureMenuReturnButtonHandle;
+static void guiTemperatureMenuCreate(void);
+static void guiTemperatureMenuShow(void);
+static void guiTemperatureMenuHide(void);
 
 // WiFi menu
 static GHandle					guiWiFiMenuHandle;
 static GHandle					guiWiFiMenuReturnButtonHandle;
-// TODO: Projekt menu wifi
+static void guiWifiMenuCreate(void);
+static void guiWiFiMenuShow(void);
+static void guiWiFiMenuHide(void);
+// TODO: Design menu wifi
 
 // Settings menu
 static GHandle					guiSettingsMenuHandle;
 static GHandle					guiSettingsMenuReturnButtonHandle;
-// TODO: Projekt menu ustawien
+static void guiSettingsMenuCreate(void);
+static void guiSettingsMenuShow(void);
+static void guiSettingsMenuHide(void);
+// TODO: Design settings menu
 
 // Main console object
 static GConsoleObject           guiConsole;
@@ -156,22 +173,27 @@ static GHandle                  guiConsoleButtonHandle;
 static GHandle                  guiConsoleTitleHandle;
 static GHandle                  guiConsoleHandle;
 static guiConsoleConf_t         guiConsoleConf;
-
+static void guiConsoleCreate(guiConsoleConf_t config);
+static void guiConsoleHide(void);
+static void guiConsoleShow(void);
 
 static GListener				guiMainListener;
 
 
 
 void guiInit(void);
+void guiSetStepperManager(StepperManager_t* stpman);
 void guiStart(void);
 
-void guiCreateWidgets(void);
+static void guiCreateWidgets(void);
 
-void guiMainMenuCreate(void);
+static void guiMainMenuCreate(void);
 
-void guiConsoleCreate(guiConsoleConf_t config);
+static void guiConsoleCreate(guiConsoleConf_t config);
 GHandle guiConsoleGetWinHandle(void);
-void guiConsoleShow(void);
+static void guiConsoleShow(void);
+
+static StepperManager_t* stpManager;
 
 threadreturn_t guiThread(void* param);
 

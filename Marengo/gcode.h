@@ -9,6 +9,9 @@
 #define MARENGO_GCODE_H_
 
 #include "float.h"
+#include "StepperManager.h"
+#include "MovementQueue.h"
+
 
 #define GCODE_STPSTATUS_DELAY_TIME 1
  // Arbitrary rules due to RS274/NGC language compliance
@@ -264,6 +267,7 @@ typedef struct {
 	char programflow;
 	char spindle;
 	char extrudermode;
+	stpCoordF_t lastcoord;
 } gcommand_t;
 
 gcommand_t com;
@@ -276,12 +280,17 @@ int g_linenumber;
 int* g_modalgroupCount; // Table for counting modal groups
 g_gcode* g_gcodestable;
 
-void gcode_init();
+void gcode_init(StepperManager_t* stpman, MovementQueue_t* movque);
+void gcode_setStepperManager(StepperManager_t* stepman);
+void gcode_setMovementQueue(MovementQueue_t* queue);
 gcommand_t gcode_parseline(char* line);
 char *gcode_stripwhitespace(char* line);
 int gcode_stripcomments(char* line, char* comments);
 int gcode_parsecomments(char* comments);
 float parse_expression(char* expr);
 int gcodeParseCommand(gcommand_t cmd);
+
+static MovementQueue_t* stpMovementQueue;
+static StepperManager_t* stpManager;
 
 #endif /* MARENGO_GCODE_H_ */

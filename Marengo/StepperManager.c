@@ -9,8 +9,10 @@
 void StepperManager_Init(StepperManager_t* const me)
 {
   me->delay=0;
+  me->b_NextMoveReady = FALSE;
+  me->b_InMove = FALSE;
   StepperMove_Init(&me->move);
-  for(int i=0; i<STEPPER_MANAGER_STEPPER_NUM;i++)
+  for(int i=0; i<STEPPER_NUM;i++)
   {
     me->Endstop[i]=NULL;
     me->Stepper[i]=NULL;
@@ -18,6 +20,7 @@ void StepperManager_Init(StepperManager_t* const me)
   me->queue = NULL;
   chVTObjectInit(&me->vt);
   StepperMove_Init(&me->move);
+  StepperMove_Init(&me->buffered_move);
   me->tp = chThdCreateStatic(StepperManagerThreadWorkingArea,
                          sizeof(StepperManagerThreadWorkingArea), NORMALPRIO,
                          StepperManager_ThreadFunction, (void*)me);
@@ -26,8 +29,20 @@ void StepperManager_Init(StepperManager_t* const me)
 void StepperManager_SetStepper(StepperManager_t* const me, StepperProxy_t* step,
                               int i)
 {
-  if(i>=0 && i<STEPPER_MANAGER_STEPPER_NUM)
+  if(i>=0 && i<STEPPER_NUM)
     me->Stepper[i]=step;
+}
+
+
+// Sets stepper direction for given movement
+void StepperManager_SetSteppersDirections(StepperManager_t* const me, StepperMove_t* move)
+{
+  for(int i=0; i<STEPPER_NUM; i++)
+  {
+    if(move->d[i]>0) StepperProxy_Enable(me->Stepper[i]);
+    else StepperProxy_Disable(me->Stepper[i]);
+    StepperProxy_SetDirection(me->Stepper[i], move->direction[i]);
+  }
 }
 
 void StepperManager_SetEndstop(StepperManager_t* const me, EndstopProxy_t* end,
@@ -43,32 +58,100 @@ void StepperManager_SetItsMovementQueue(StepperManager_t* const me,
   me->queue = queue;
 }
 
+// Returns coords in
+stpCoordF_t StepperManager_GetPosition(StepperManager_t* const me)
+{
+  stpCoordF_t temp;
+  temp.x = StepperProxy_GetPositionInMM(me->Stepper[0]);
+  temp.y = StepperProxy_GetPositionInMM(me->Stepper[1]);
+  temp.z = StepperProxy_GetPositionInMM(me->Stepper[2]);
+  temp.e = StepperProxy_GetPositionInMM(me->Stepper[3]);
+  return temp;
+}
+
+stpCoord_t StepperManager_GetNextPositionInStps(StepperManager_t* const me)
+{
+  if(me->b_InMove==FALSE)
+    return StepperManager_ConvertPositionToStps(me,
+      StepperManager_GetPosition(me));
+  return StepperManager_ConvertPositionToStps(me,
+      StepperMove_GetDestination(&me->move));
+}
+
+stpCoord_t StepperManager_ConvertPositionToStps(StepperManager_t* const me,
+                                                stpCoordF_t coord)
+{
+  stpCoord_t temp;
+  temp.x = StepperProxy_MM2Stps(me->Stepper[0], coord.x);
+  temp.y = StepperProxy_MM2Stps(me->Stepper[1], coord.y);
+  temp.z = StepperProxy_MM2Stps(me->Stepper[2], coord.z);
+  temp.e = StepperProxy_MM2Stps(me->Stepper[3], coord.e);
+  return temp;
+}
+
+uint32_t StepperManager_GetCurrentFeedrate(StepperManager_t* const me)
+{
+  // TODO: Should we store the previous move feedrate \
+  and return it if there is no movement?
+  if(me->b_InMove)
+    return StepperMove_GetFeedrate(&me->move);
+  else
+    return 0;
+}
+
+void StepperManager_SetPosition(StepperManager_t* const me,
+                                       stpCoordF_t position)
+{
+  StepperProxy_SetPositionInMM(me->Stepper[0], position.x);
+  StepperProxy_SetPositionInMM(me->Stepper[1], position.y);
+  StepperProxy_SetPositionInMM(me->Stepper[2], position.z);
+  StepperProxy_SetPositionInMM(me->Stepper[3], position.e);
+  // Set it also as a last position
+}
+
+bool_t StepperManager_IsMoving(StepperManager_t* const me)
+{
+  return me->b_InMove;
+}
+
 void StepperManager_DisableAllSteppers(StepperManager_t* const me)
 {
-  for(int i=0; i<STEPPER_MANAGER_STEPPER_NUM; i++)
+  for(int i=0; i<STEPPER_NUM; i++)
     StepperProxy_Disable(me->Stepper[i]);
 }
 void StepperManager_EnableAllStepper(StepperManager_t* const me)
 {
-  for(int i=0; i<STEPPER_MANAGER_STEPPER_NUM; i++)
+  for(int i=0; i<STEPPER_NUM; i++)
     StepperProxy_Enable(me->Stepper[i]);
 }
 
-// TODO: Rename this function to something more clear
 // Return the axis with maximum number of steps to be made in current move
-StepperProxy_t* StepperManager_MoveToAxisProjection(StepperManager_t* const me)
+StepperProxy_t* StepperManager_GetMainMovementAxis(StepperManager_t* const me)
 {
   int max = 0;
-  for(int i=1; i<STEPPER_MANAGER_STEPPER_NUM;i++)
-    max = fpos(fsub(fabs(me->move.coord[max]),
-                    fabs(me->move.coord[i]))) ? max : i;
+  for(int i=1; i<STEPPER_NUM;i++)
+    max = me->move.d[max]>me->move.d[i] ? max : i;
   return me->Stepper[max];
+}
+void StepperManager_CheckMovementFeedrate(StepperManager_t* const me,
+                                          StepperMove_t* const move)
+{
+  for(int i=0; i<STEPPER_NUM; i++)
+  {
+    int32_t feedproject = StepperMove_GetFeedrateToAxisProjection(move,i);
+    if(feedproject > me->Stepper[i]->maxFeedrate)
+    {
+      // Reduce movement feedrate
+      move->feedrate *= me->Stepper[i]->maxFeedrate;
+      move->feedrate /= feedproject;
+    }
+  }
 }
 int StepperManager_CalculateRampDelay_Linear(StepperManager_t* const me)
 {
   // Check for maximal feedrate possible for every stepper
   // Find the axis with constant stepping
-  StepperProxy_t* maxax = StepperManager_MoveToAxisProjection(me);
+  StepperProxy_t* maxax = StepperManager_GetMainMovementAxis(me);
   uint32_t minfeed = StepperProxy_MM2Stps(maxax, itof(1))*STEPPER_MANAGER_MINFEED/60;
   if(me->move.step == me->move.dm){
     me->delay = STEPPER_MANAGER_CLOCK_FREQ/minfeed;
@@ -77,10 +160,10 @@ int StepperManager_CalculateRampDelay_Linear(StepperManager_t* const me)
   {
     int32_t accel = StepperProxy_MM2Stps(maxax, itof(1))*STEPPER_MANAGER_STPACCEL;
     int64_t maxfeed = StepperProxy_MM2Stps(maxax, itof(1))*me->move.feedrate;
-    if(maxax->Name!=STEPPER_AXIS_E)
+    if(maxax->Axis!=STEPPER_AXIS_E)
     {
       maxfeed*=me->move.dm;
-      maxfeed/=StepperMove_GetMovementLenghtInSteps(&me->move);
+      maxfeed/=me->move.length;
     }
     maxfeed/=60;
     int64_t ramplen = (maxfeed*maxfeed-minfeed*minfeed);
@@ -116,59 +199,90 @@ int StepperManager_CalculateRampDelay_Linear(StepperManager_t* const me)
   return me->delay;
 }
 
-int StepperManager_StartISR(StepperManager_t* const me)
+void StepperManager_StartISR(StepperManager_t* const me)
 {
   if(me->delay<=0)
     me->delay=1;
+  me->b_InMove = TRUE;
   chVTSet(&me->vt, me->delay, StepperManager_ISRCallback, me);
 }
-int StepperManager_StopISR(StepperManager_t* const me)
+void StepperManager_StopISR(StepperManager_t* const me)
 {
+  me->b_InMove = FALSE;
   chVTReset(&me->vt);
 }
 void StepperManager_ISRCallback(void *p)
 {
+  chSysLockFromISR();
   StepperManager_t* me = (StepperManager_t*)p;
   // Check if the current move hasn't finished
   if(!StepperMove_Step(&me->move, me->Stepper))
   {
     // Get the delay for next move
     me->delay= StepperManager_CalculateRampDelay_Linear(me);
-    chSysLockFromISR();
     chVTSetI(&me->vt, me->delay, StepperManager_ISRCallback, me);
-    chSysUnlockFromISR();
   }
-  else
+  else // If the move was finished
   {
-    // If the move was finished
-    // TODO: Maybe check for another move?
+    if(me->b_NextMoveReady)
+    {
+      me->move = me->buffered_move;
+      me->b_NextMoveReady = FALSE;
+      me->delay=1;
+      StepperManager_SetSteppersDirections(me, &me->move);
+      chVTSetI(&me->vt, me->delay, StepperManager_ISRCallback, me);
+    }
+    else
+    {
+    me->b_InMove = FALSE;
     StepperManager_DisableAllSteppers(me);
-    chSysLockFromISR();
     chVTResetI(&me->vt);
-    chSysUnlockFromISR();
+    }
   }
+  chSysUnlockFromISR();
 }
 
-static THD_FUNCTION(StepperManager_ThreadFunction, arg)
+THD_FUNCTION(StepperManager_ThreadFunction, arg)
 {
   StepperManager_t* me = (StepperManager_t*)arg;
   while(true)
   {
+    StepperMove_t* moveptr;
+    stpCoord_t start, dest, mov;
     // TODO: Add thread termination
     // if(chThdShouldTerminate())
     // do stuff to stop stepper motors and so on
     chThdSleepMilliseconds(100);
     if(StepperMove_IsFinished(&me->move))
     {
-      StepperMove_t* moveptr = MovementQueue_Pull(me->queue, &me->move);
+      moveptr = MovementQueue_Pull(me->queue, &me->move);
       while(moveptr==NULL)
       {
         chThdSleepMilliseconds(100);
         moveptr = MovementQueue_Pull(me->queue, &me->move);
       }
-
-      StepperMove_Prepare(&me->move, me->Stepper);
+      start = StepperManager_GetNextPositionInStps(me);
+      dest = StepperManager_ConvertPositionToStps(me,
+                                      StepperMove_GetDestination(&me->move));
+      mov = stpCoord_Sub(dest,start);
+      StepperMove_Prepare(&me->move, mov);
+      StepperManager_CheckMovementFeedrate(me, &me->move);
+      StepperManager_SetSteppersDirections(me, &me->move);
       StepperManager_StartISR(me);
+    }
+    if(!me->b_NextMoveReady)
+    {
+      moveptr = MovementQueue_Pull(me->queue, &me->buffered_move);
+      if(moveptr!=NULL)
+      {
+        start = StepperManager_GetNextPositionInStps(me);
+        dest = StepperManager_ConvertPositionToStps(me,
+                               StepperMove_GetDestination(&me->buffered_move));
+        mov = stpCoord_Sub(dest,start);
+        StepperMove_Prepare(&me->buffered_move, mov);
+        StepperManager_CheckMovementFeedrate(me, &me->buffered_move);
+        me->b_NextMoveReady = TRUE;
+      }
     }
   }
 }

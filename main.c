@@ -44,10 +44,15 @@
 // Include Marengo configurations
 #include "Marengo/pin_mapping.h"
 #include "Marengo/console.h"
-#include "Marengo/stepper.h"
 #include "Marengo/gcode.h"
 #include "Marengo/heater.h"
 #include "Marengo/gui.h"
+
+
+#include "Marengo/StepperProxy.h"
+#include "Marengo/StepperManager.h"
+static   CH_HEAP_AREA(testheap, 256);
+
 
 // uGFX GINPUT Mouse calibration data
 float calibrationdata[]={
@@ -128,6 +133,8 @@ ccmd_t CmdThreads(int argc, char **argv)
 }
 ccmd_t CmdStpDir(int argc, char **argv)
 {
+  consPrintf("Currently not supported!"CONSOLE_NEWLINE_STR);
+  /*
   if (argc!=2){
     consPrintf("Not enough or too many parameters!"CONSOLE_NEWLINE_STR);
     return CCMD_FAIL;
@@ -146,22 +153,27 @@ ccmd_t CmdStpDir(int argc, char **argv)
   consPrintf("Axis %c direction changed"CONSOLE_NEWLINE_STR, axis);
   return CCMD_SUCCES;
   }
+  */
+  return CCMD_SUCCES;
 }
 ccmd_t CmdGCode(int argc, char **argv)
 {
   char line[GCODE_MAXLINELENGTH];
   gcommand_t cmd;
+  cmd.programflow = PROGRAM_FLOW_RUNNING;
+  consPrintf("GCode Interpreter"CONSOLE_NEWLINE_STR);
   for(;;)
   {
     consGetLine(line,GCODE_MAXLINELENGTH);
     if (line[0]==37 || !strcmp(line, "M30"))
       break;
-    chThdSleepMilliseconds(1000);
+    chThdSleepMilliseconds(100);
     cmd = gcode_parseline(line);
-    if (cmd.programflow == PROGRAM_FLOW_STOPPED)
-        consPrintf("ERROR! Line not parsed"CONSOLE_NEWLINE_STR);
+    if (cmd.programflow == PROGRAM_FLOW_STOPPED){
+        consPrintf("GCode Interpreter stopped"CONSOLE_NEWLINE_STR);
+        break;
+    }
     gcodeParseCommand(cmd);
-    printf("\n");
   }
   return CCMD_SUCCES;
 }
@@ -217,33 +229,34 @@ ccmd_t CmdMoveLine(int argc, char **argv)
     consPrintf("Not enough or too many parameters!"CONSOLE_NEWLINE_STR);
     return CCMD_FAIL;
     }
-  float_t x = myatof(argv[1]);
-  float_t y = myatof(argv[2]);
-  float_t z = myatof(argv[3]);
-  float_t e = myatof(argv[4]);
+  StepperMove_t move;
+  StepperMove_Init(&move);
+  move.coord[1] = myatof(argv[1]);
+  move.coord[1] = myatof(argv[2]);
+  move.coord[2] = myatof(argv[3]);
+  move.coord[3] = myatof(argv[4]);
   if(argc>5)
-    stpFeedrate = atoi(argv[5]);
-  if(argc==7)
-    stpAccel = atoi(argv[6]);
-  consPrintf("Moving in line with to x:");
-  printFloat(x);
+    move.feedrate = atoi(argv[5]);
+  consPrintf("Moving in line to x:");
+  printFloat(move.coord[0]);
   consPrintf("y:");
-  printFloat(y);
+  printFloat(move.coord[1]);
   consPrintf("z:");
-  printFloat(z);
+  printFloat(move.coord[2]);
   consPrintf("e:");
-  printFloat(e);
+  printFloat(move.coord[3]);
   consPrintf(CONSOLE_NEWLINE_STR);
-  //stpMoveLine(x,y,z,e,d);
-  stpCoordF_t ruch;
-  stpCoord_t kroki;
-  stpMoveLinearInit(ruch);
+  // TODO: Add movement to queue MovementQueue_Push(queue ,move);
+  // But where to get which queue?
   return CCMD_SUCCES;
 }
 ccmd_t CmdStpStop(int argc, char **argv)
 {
+  consPrintf("Currently not supported!"CONSOLE_NEWLINE_STR);
+  /*
   stpStop();
   consPrintf("Stepper motors stopped!"CONSOLE_NEWLINE_STR);
+  */
   return CCMD_SUCCES;
 }
 /*===========================================================================*/
@@ -268,6 +281,7 @@ static const SPIConfig spi_cfg = {
 /*
  * Red LED blinker thread, times are in milliseconds.
  */
+/*
 static THD_WORKING_AREA(waThread1, 128);
 static THD_FUNCTION(Thread1, arg) {
 
@@ -280,10 +294,11 @@ static THD_FUNCTION(Thread1, arg) {
     chThdSleepMilliseconds(500);
   }
 }
-
+*/
 /*
  * Green LED blinker thread, times are in milliseconds.
  */
+/*
 static THD_WORKING_AREA(waThread2, 128);
 static THD_FUNCTION(Thread2, arg) {
 
@@ -296,7 +311,7 @@ static THD_FUNCTION(Thread2, arg) {
     chThdSleepMilliseconds(250);
   }
 }
-
+*/
 int main(void) {
 
 
@@ -310,6 +325,8 @@ int main(void) {
   gfxInit();
   //halInit();
   //chSysInit();
+  //chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, NULL);
+  //chThdCreateStatic(waThread2, sizeof(waThread2), NORMALPRIO, Thread2, NULL);
   /*
   * Initializes a serial-over-USB CDC driver.
   */
@@ -329,29 +346,107 @@ int main(void) {
 
   ConsoleCmd consoleCommands[]=
   {
-   {(const char*)"info", (ccmd_t)CmdInfo},
-   {"threads", CmdThreads, "Displays threads informationn"},
-   {"stpdir", CmdStpDir, "Changes direction of movement for stepper motor. Args: axis"},
-   {"gcode", CmdGCode, "Opens up gcode interpreter"},
-   {"endstops", CmdEndstops, "Displays endstops status"},
-   {"heattemp", CmdHeatTemp, "Displays heater temperature. Args heater num"},
-   {"heatsettemp", CmdHeatSet, "Set heater temperature. Args: heater num, temp in celsius"},
-   {"stpmovline", CmdMoveLine, "Move to coords x,y,z,e, with delay e"},
-   {"stpstop", CmdStpStop, "Immidiately stop stepper motors"},
-   {NULL, NULL}
+   {"info", (ccmd_t)CmdInfo, "Display system information"},
+   {"threads", (ccmd_t)CmdThreads, "Displays threads informationn"},
+   {"stpdir", (ccmd_t)CmdStpDir, "Changes direction of movement for stepper motor. Args: axis"},
+   {"gcode", (ccmd_t)CmdGCode, "Opens up gcode interpreter"},
+   {"endstops", (ccmd_t)CmdEndstops, "Displays endstops status"},
+   {"heattemp", (ccmd_t)CmdHeatTemp, "Displays heater temperature. Args heater num"},
+   {"heatsettemp", (ccmd_t)CmdHeatSet, "Set heater temperature. Args: heater num, temp in celsius"},
+   {"stpmovline", (ccmd_t)CmdMoveLine, "Move to coords x,y,z,e, with delay e"},
+   {"stpstop", (ccmd_t)CmdStpStop, "Immidiately stop stepper motors"},
+   {NULL, NULL, NULL}
   };
 
   consInit();
-  consConfig.Stream = (BaseSequentialStream*)&SDU1;
+  consConfig.Stream = (BaseAsynchronousChannel*)&SDU1;
   consConfig.Win = guiConsoleGetWinHandle();
   consConfig.cmds = consoleCommands;
 
-  stpInit();
-  consPrintf(CONSOLE_NEWLINE_STR"Stepper motor driver initialized"CONSOLE_NEWLINE_STR);
   heaterInit();
-  consPrintf(CONSOLE_NEWLINE_STR"Heater driver initialized"CONSOLE_NEWLINE_STR);
 
+  StepperProxy_t* stepX = Stepper_ProxyCreate(NULL);
+  StepperProxy_t* stepY = Stepper_ProxyCreate(NULL);
+  StepperProxy_t* stepZ = Stepper_ProxyCreate(NULL);
+  StepperProxy_t* stepE = Stepper_ProxyCreate(NULL);
+  stepX->Axis = STEPPER_AXIS_X;
+  stepX->StepsPerRev=800;
+  stepX->Microsteps=1;
+  stepX->GearRatio=1;
+  stepX->ThreadJumpUM=2000;
+  stepX->maxFeedrate=800;
+  stepX->Direction=DIR_FORWARD;
+  stepX->bNeedStall = FALSE;
+  stepX->bLinear = TRUE;
+  stepX->lineStp = LINE_XSTP;
+  stepX->lineEn = LINE_XEN;
+  stepX->lineDir = LINE_XDIR;
+  StepperProxy_Configure(stepX);
+  stepY->Axis = STEPPER_AXIS_Y;
+  stepY->StepsPerRev = 400;
+  stepY->Microsteps = 1;
+  stepY->GearRatio = 1;
+  stepY->ThreadJumpUM = 2000;
+  stepY->maxFeedrate = 900;
+  stepY->Direction = DIR_FORWARD;
+  stepY->bNeedStall = FALSE;
+  stepY->bLinear = TRUE;
+  stepY->lineStp = LINE_YSTP;
+  stepY->lineEn = LINE_YEN;
+  stepY->lineDir = LINE_YDIR;
+  StepperProxy_Configure(stepY);
+  stepZ->Axis = STEPPER_AXIS_Z;
+  stepZ->StepsPerRev = 400;
+  stepZ->Microsteps = 1;
+  stepZ->GearRatio = 1;
+  stepZ->ThreadJumpUM = 2000;
+  stepZ->maxFeedrate = 60;
+  stepZ->Direction = DIR_FORWARD;
+  stepZ->bNeedStall = FALSE;
+  stepZ->bLinear = TRUE;
+  stepZ->lineStp = LINE_ZSTP;
+  stepZ->lineEn = LINE_ZEN;
+  stepZ->lineDir = LINE_ZDIR;
+  StepperProxy_Configure(stepZ);
+  stepE->Axis = STEPPER_AXIS_E;
+  stepE->StepsPerRev = 800;
+  stepE->Microsteps = 1;
+  stepE->GearRatio = 3;
+  stepE->ThreadJumpUM = 7300;
+  stepE->maxFeedrate = 800;
+  stepE->Direction = DIR_FORWARD;
+  stepE->bNeedStall = FALSE;
+  stepE->bLinear = FALSE;
+  stepE->lineStp = LINE_E1STP;
+  stepE->lineEn = LINE_E1EN;
+  stepE->lineDir = LINE_E1DIR;
+  StepperProxy_Configure(stepE);
+
+  EndstopProxy_t* endstopX = EndstopProxy_Create(NULL);
+  EndstopProxy_t* endstopY = EndstopProxy_Create(NULL);
+  EndstopProxy_t* endstopZ = EndstopProxy_Create(NULL);
+  EndstopProxy_Configure(endstopX, LINE_XMIN);
+  EndstopProxy_Configure(endstopY, LINE_YMIN);
+  EndstopProxy_Configure(endstopZ, LINE_ZMIN);
+
+  StepperManager_t* stepmanager = StepperManager_Create(NULL);
+  StepperManager_SetStepper(stepmanager, stepX, 0);
+  StepperManager_SetStepper(stepmanager, stepY, 1);
+  StepperManager_SetStepper(stepmanager, stepZ, 2);
+  StepperManager_SetStepper(stepmanager, stepE, 3);
+
+  MovementQueue_t* queue = MovementQueue_Create(NULL);
+  StepperManager_SetItsMovementQueue(stepmanager, queue);
+
+
+  //guiSetStepperManager(stepmanager);
   guiStart();
+  gcode_init(stepmanager, queue);
+
+  StepperMove_t* step1 = StepperMove_Create(NULL);
+  StepperMove_t* step2 = StepperMove_Create(NULL);
+  StepperMove_Set(step1, itof(10), fzero() ,fzero(),fzero(), 1200);
+  StepperMove_Set(step2, itof(-10), fzero() ,fzero(),fzero(), 1200);
 
   // Wait for SDU1 state change to USB_ACTIVE
   while(SDU1.config->usbp->state != USB_ACTIVE)
@@ -360,16 +455,12 @@ int main(void) {
   }
   consStart(); // Start the console
 
-
   /*
    * Normal main() thread activity, spawning shells.
    */
-  // Start in gcode
-  //CmdGCode(0, "dupa");
 
   while (true) {
     chThdSleepMilliseconds(1000);
-    //guiProgressBarIncrement();
   }
   return 0;
 }
