@@ -115,7 +115,7 @@ float_t fadd(float_t a, float_t b)
             }
             c.character -= b.character;
             if (c.mantisa >= b.mantisa)
-                c.mantisa - b.mantisa;
+                c.mantisa -= b.mantisa;
             // TODO: cut zeroes at end
             else {
                 if (c.character > 0)
@@ -137,7 +137,7 @@ float_t fsub(float_t a, float_t b)
 
 float_t myatof(char* str)
 {
-    float_t result = { 1,0,0,FLOAT_PRECISION };
+    float_t result = { 1,0,0,0 };
     int i = 0;
     if (str[i] == '-')
     {
