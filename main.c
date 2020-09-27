@@ -344,6 +344,7 @@ int main(void) {
 
   guiInit();
 
+  // Configure console
   ConsoleCmd consoleCommands[]=
   {
    {"info", (ccmd_t)CmdInfo, "Display system information"},
@@ -363,8 +364,10 @@ int main(void) {
   consConfig.Win = guiConsoleGetWinHandle();
   consConfig.cmds = consoleCommands;
 
+  // Configure heater
   heaterInit();
 
+  // Configure stepper motor proxies
   StepperProxy_t* stepX = Stepper_ProxyCreate(NULL);
   StepperProxy_t* stepY = Stepper_ProxyCreate(NULL);
   StepperProxy_t* stepZ = Stepper_ProxyCreate(NULL);
@@ -422,6 +425,7 @@ int main(void) {
   stepE->lineDir = LINE_E1DIR;
   StepperProxy_Configure(stepE);
 
+  // Configure endstop proxies
   EndstopProxy_t* endstopX = EndstopProxy_Create(NULL);
   EndstopProxy_t* endstopY = EndstopProxy_Create(NULL);
   EndstopProxy_t* endstopZ = EndstopProxy_Create(NULL);
@@ -429,12 +433,14 @@ int main(void) {
   EndstopProxy_Configure(endstopY, LINE_YMIN);
   EndstopProxy_Configure(endstopZ, LINE_ZMIN);
 
+  // Configure stepper manager
   StepperManager_t* stepmanager = StepperManager_Create(NULL);
   StepperManager_SetStepper(stepmanager, stepX, 0);
   StepperManager_SetStepper(stepmanager, stepY, 1);
   StepperManager_SetStepper(stepmanager, stepZ, 2);
   StepperManager_SetStepper(stepmanager, stepE, 3);
 
+  // Configure movement queue
   MovementQueue_t* queue = MovementQueue_Create(NULL);
   StepperManager_SetItsMovementQueue(stepmanager, queue);
 
@@ -442,11 +448,6 @@ int main(void) {
   //guiSetStepperManager(stepmanager);
   guiStart();
   gcode_init(stepmanager, queue);
-
-  StepperMove_t* step1 = StepperMove_Create(NULL);
-  StepperMove_t* step2 = StepperMove_Create(NULL);
-  StepperMove_Set(step1, itof(10), fzero() ,fzero(),fzero(), 1200);
-  StepperMove_Set(step2, itof(-10), fzero() ,fzero(),fzero(), 1200);
 
   // Wait for SDU1 state change to USB_ACTIVE
   while(SDU1.config->usbp->state != USB_ACTIVE)
