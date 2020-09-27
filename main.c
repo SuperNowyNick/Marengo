@@ -23,7 +23,6 @@
  *
  */
 
-
 #include "gfx.h"
 #include "ch.h"
 #include "hal.h"
@@ -40,7 +39,6 @@
 // Include header file for LoadMouseCalibration function required for uGFX to work
 #include "src/ginput/ginput_driver_mouse.h"
 
-
 // Include Marengo configurations
 #include "Marengo/pin_mapping.h"
 #include "Marengo/console.h"
@@ -48,11 +46,9 @@
 #include "Marengo/heater.h"
 #include "Marengo/gui.h"
 
-
 #include "Marengo/StepperProxy.h"
 #include "Marengo/StepperManager.h"
 static   CH_HEAP_AREA(testheap, 256);
-
 
 // uGFX GINPUT Mouse calibration data
 float calibrationdata[]={
@@ -259,62 +255,8 @@ ccmd_t CmdStpStop(int argc, char **argv)
   */
   return CCMD_SUCCES;
 }
-/*===========================================================================*/
-/* Initialization and main thread.                                           */
-/*===========================================================================*/
 
-/*
- * Application entry point.
- */
-/*
-#define SPI_PORT    &SPID5
-#define DC_PORT     GPIOD
-#define DC_PIN      GPIOD_LCD_WRX
-
-static const SPIConfig spi_cfg = {
-    NULL,
-    GPIOC,
-    GPIOC_SPI5_LCD_CS,
-    ((1 << 3) & SPI_CR1_BR) | SPI_CR1_SSM | SPI_CR1_SSI | SPI_CR1_MSTR
-};
-*/
-/*
- * Red LED blinker thread, times are in milliseconds.
- */
-/*
-static THD_WORKING_AREA(waThread1, 128);
-static THD_FUNCTION(Thread1, arg) {
-
-  (void)arg;
-  chRegSetThreadName("blinker1");
-  while (true) {
-    palClearPad(GPIOG, GPIOG_LED4_RED);
-    chThdSleepMilliseconds(500);
-    palSetPad(GPIOG, GPIOG_LED4_RED);
-    chThdSleepMilliseconds(500);
-  }
-}
-*/
-/*
- * Green LED blinker thread, times are in milliseconds.
- */
-/*
-static THD_WORKING_AREA(waThread2, 128);
-static THD_FUNCTION(Thread2, arg) {
-
-  (void)arg;
-  chRegSetThreadName("blinker2");
-  while (true) {
-    palClearPad(GPIOG, GPIOG_LED3_GREEN);
-    chThdSleepMilliseconds(250);
-    palSetPad(GPIOG, GPIOG_LED3_GREEN);
-    chThdSleepMilliseconds(250);
-  }
-}
-*/
 int main(void) {
-
-
   /*
    * System initializations.
    * - HAL initialization, this also initializes the configured device drivers
@@ -323,10 +265,6 @@ int main(void) {
    *   RTOS is active.
    */
   gfxInit();
-  //halInit();
-  //chSysInit();
-  //chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, NULL);
-  //chThdCreateStatic(waThread2, sizeof(waThread2), NORMALPRIO, Thread2, NULL);
   /*
   * Initializes a serial-over-USB CDC driver.
   */
@@ -457,7 +395,7 @@ int main(void) {
   consStart(); // Start the console
 
   /*
-   * Normal main() thread activity, spawning shells.
+   * Normal main() thread activity
    */
 
   while (true) {
