@@ -46,10 +46,11 @@ ASFLAGS  =
 LDFLAGS  = -O0
 
 SRC      = Marengo/console.c Marengo/gcode.c Marengo/coord.c \
-		   Marengo/marengo.c Marengo/heater.c Marengo/gui.c \
+		   Marengo/marengo.c Marengo/gui.c \
 		   Marengo/float.c Marengo/StepperProxy.c Marengo/EndstopProxy.c \
 		   Marengo/StepperManager.c Marengo/MovementQueue.c \
-		   Marengo/StepperMove.c Marengo/gui/dialwidget.c
+		   Marengo/StepperMove.c Marengo/HeaterProxy.c \
+		   Marengo/gui/dialwidget.c 
 OBJS     = 
 DEFS     =
 LIBS     =

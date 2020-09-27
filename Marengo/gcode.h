@@ -11,6 +11,7 @@
 #include "float.h"
 #include "StepperManager.h"
 #include "MovementQueue.h"
+#include "HeaterProxy.h"
 
 
 #define GCODE_STPSTATUS_DELAY_TIME 1
@@ -280,7 +281,8 @@ int g_linenumber;
 int* g_modalgroupCount; // Table for counting modal groups
 g_gcode* g_gcodestable;
 
-void gcode_init(StepperManager_t* stpman, MovementQueue_t* movque);
+void gcode_init(StepperManager_t* stpman, MovementQueue_t* movque,
+                HeaterProxy_t* extruder, HeaterProxy_t* bed);
 void gcode_setStepperManager(StepperManager_t* stepman);
 void gcode_setMovementQueue(MovementQueue_t* queue);
 gcommand_t gcode_parseline(char* line);
@@ -292,5 +294,7 @@ int gcodeParseCommand(gcommand_t cmd);
 
 static MovementQueue_t* stpMovementQueue;
 static StepperManager_t* stpManager;
+static HeaterProxy_t* htrExtruder;
+static HeaterProxy_t* htrBed;
 
 #endif /* MARENGO_GCODE_H_ */

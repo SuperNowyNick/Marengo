@@ -11,6 +11,7 @@
 #include "gfx.h"
 #include "gui/dialwidget.h"
 #include "StepperManager.h"
+#include "HeaterProxy.h"
 
 typedef struct {
 	char* name;
@@ -182,7 +183,8 @@ static GListener				guiMainListener;
 
 
 void guiInit(void);
-void guiSetStepperManager(StepperManager_t* stpman);
+void guiConfigure(StepperManager_t* stpman, HeaterProxy_t* extruder,
+                                     HeaterProxy_t* bed);
 void guiStart(void);
 
 static void guiCreateWidgets(void);
@@ -194,6 +196,8 @@ GHandle guiConsoleGetWinHandle(void);
 static void guiConsoleShow(void);
 
 static StepperManager_t* stpManager;
+static HeaterProxy_t* htrExtruder;
+static HeaterProxy_t* htrBed;
 
 threadreturn_t guiThread(void* param);
 

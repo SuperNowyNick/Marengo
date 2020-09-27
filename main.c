@@ -43,9 +43,10 @@
 #include "Marengo/pin_mapping.h"
 #include "Marengo/console.h"
 #include "Marengo/gcode.h"
-#include "Marengo/heater.h"
 #include "Marengo/gui.h"
 
+#include "Marengo/HeaterProxy.h"
+#include "Marengo/HeaterProxyLookupTables.h"
 #include "Marengo/StepperProxy.h"
 #include "Marengo/StepperManager.h"
 static   CH_HEAP_AREA(testheap, 256);
@@ -76,6 +77,19 @@ static font_t                   font;
 static coord_t                  bHeight;
 static GHandle                  ghc;
 static coord_t                  swidth, sheight;
+
+// Objects that make 3D printer
+HeaterProxy_t* heaterExtr;
+HeaterProxy_t* heaterBed;
+StepperProxy_t* stepX;
+StepperProxy_t* stepY;
+StepperProxy_t* stepZ;
+StepperProxy_t* stepE;
+EndstopProxy_t* endstopX;
+EndstopProxy_t* endstopY;
+EndstopProxy_t* endstopZ;
+StepperManager_t* stepmanager;
+MovementQueue_t* queue;
 
 // Test info cmd for Marengo console
 ccmd_t CmdInfo(int argc, char **argv)
@@ -180,9 +194,11 @@ ccmd_t CmdHeatTemp(int argc, char **argv)
   return CCMD_FAIL;
   }
   if(atoi(argv[1])==1)
-    consPrintf("Extruder thermistor temp: %d"CONSOLE_NEWLINE_STR, heaterGetTemp(&Heater1));
+    consPrintf("Extruder thermistor temp: %d"CONSOLE_NEWLINE_STR,
+               HeaterProxy_GetRealTemp(heaterExtr));
   else if(atoi(argv[1])==2)
-    consPrintf("Extruder thermistor temp: %d"CONSOLE_NEWLINE_STR, heaterGetTemp(&Heater2));
+    consPrintf("Extruder thermistor temp: %d"CONSOLE_NEWLINE_STR,
+               HeaterProxy_GetRealTemp(heaterBed));
   else {
     consPrintf("No such heater!"CONSOLE_NEWLINE_STR);
     return CCMD_FAIL;
@@ -195,20 +211,20 @@ ccmd_t CmdHeatSet(int argc, char **argv)
   consPrintf("Not enough or too many parameters!"CONSOLE_NEWLINE_STR);
   return CCMD_FAIL;
   }
-  heater_t *heat;
+  HeaterProxy_t *heat;
   if(atoi(argv[1])==1){
-    heat=&Heater1;
+    heat=heaterExtr;
     consPrintf("Extruder ");
   }
   else if(atoi(argv[1])==2){
-    heat=&Heater2;
+    heat=heaterBed;
     consPrintf("Heatbed ");
   }
   else {
     consPrintf("No such heater!"CONSOLE_NEWLINE_STR);
     return CCMD_FAIL;
   }
-  heaterSetTemp(heat, atoi(argv[2]));
+  HeaterProxy_SetTemp(heat, atoi(argv[2]));
   consPrintf("heater temp set to %d degrees"CONSOLE_NEWLINE_STR, atoi(argv[2]));
   return CCMD_SUCCES;
 }
@@ -227,7 +243,7 @@ ccmd_t CmdMoveLine(int argc, char **argv)
     }
   StepperMove_t move;
   StepperMove_Init(&move);
-  move.coord[1] = myatof(argv[1]);
+  move.coord[0] = myatof(argv[1]);
   move.coord[1] = myatof(argv[2]);
   move.coord[2] = myatof(argv[3]);
   move.coord[3] = myatof(argv[4]);
@@ -242,8 +258,7 @@ ccmd_t CmdMoveLine(int argc, char **argv)
   consPrintf("e:");
   printFloat(move.coord[3]);
   consPrintf(CONSOLE_NEWLINE_STR);
-  // TODO: Add movement to queue MovementQueue_Push(queue ,move);
-  // But where to get which queue?
+  MovementQueue_Push(queue, &move);
   return CCMD_SUCCES;
 }
 ccmd_t CmdStpStop(int argc, char **argv)
@@ -302,14 +317,65 @@ int main(void) {
   consConfig.Win = guiConsoleGetWinHandle();
   consConfig.cmds = consoleCommands;
 
-  // Configure heater
-  heaterInit();
+  // Configure heater proxies
+  heaterExtr = HeaterProxy_Create(NULL);
+  heaterBed = HeaterProxy_Create(NULL);
+  HeaterProxy_Init(heaterExtr);
+  heaterExtr->name = "Extruder";
+  heaterExtr->lookupTable = Heater1LookupTable;
+  heaterExtr->lookupTableSize = sizeof(Heater1LookupTable)/2;
+  heaterExtr->maxtemp=285;
+  heaterExtr->mintemp=5;
+  heaterExtr->pwm.line = LINE_EXTRUDERCTRL;
+  heaterExtr->pwm.lineAltFncNum = 2;
+  heaterExtr->pwm.pwmd = &PWMD3;
+  heaterExtr->pwm.pwmChanNum = 0;
+  heaterExtr->pwm.pwmConf.frequency = 10000;
+  heaterExtr->pwm.pwmConf.period = 1000;
+  heaterExtr->pwm.pwmConf.callback = NULL;
+  heaterExtr->pwm.pwmConf.channels[0].mode = PWM_OUTPUT_ACTIVE_HIGH;
+  heaterExtr->adc.adcLine = LINE_THERM0;
+  heaterExtr->adc.adcChanNum = ADC_CHANNEL_IN4;
+  heaterExtr->adc.adcd = &ADCD3;
+  heaterExtr->adc.adcg.num_channels = 1;
+  heaterExtr->adc.adcg.cr2 = ADC_CR2_SWSTART;
+  heaterExtr->adc.adcg.smpr1 = ADC_SMPR2_SMP_AN4(ADC_SAMPLE_3);
+  heaterExtr->adc.adcg.sqr3 = ADC_SQR3_SQ1_N(ADC_CHANNEL_IN4);
+  heaterExtr->pid.propGain =5;
+  heaterExtr->pid.intGain = 5;
+  heaterExtr->pid.difGain = 0;
+  HeaterProxy_Init(heaterBed);
+  heaterBed->name = "Bed";
+  heaterBed->lookupTable = Heater1LookupTable;
+  heaterBed->lookupTableSize = sizeof(Heater1LookupTable)/2;
+  heaterBed->maxtemp=285;
+  heaterBed->mintemp=5;
+  heaterBed->pwm.line = LINE_HEATBEDCTRL;
+  heaterBed->pwm.lineAltFncNum = 1;
+  heaterBed->pwm.pwmd = &PWMD2;
+  heaterBed->pwm.pwmChanNum = 1;
+  heaterBed->pwm.pwmConf.frequency = 10000;
+  heaterBed->pwm.pwmConf.period = 1000;
+  heaterBed->pwm.pwmConf.callback = NULL;
+  heaterBed->pwm.pwmConf.channels[1].mode = PWM_OUTPUT_ACTIVE_HIGH;
+  heaterBed->adc.adcLine = LINE_THERM1;
+  heaterBed->adc.adcChanNum = ADC_CHANNEL_IN13;
+  heaterBed->adc.adcd = &ADCD3;
+  heaterBed->adc.adcg.num_channels = 1;
+  heaterBed->adc.adcg.cr2 = ADC_CR2_SWSTART;
+  heaterBed->adc.adcg.smpr1 = ADC_SMPR1_SMP_AN13(ADC_SAMPLE_3);
+  heaterBed->adc.adcg.sqr3 = ADC_SQR3_SQ1_N(ADC_CHANNEL_IN13);
+  heaterBed->pid.propGain = 10;
+  heaterBed->pid.intGain = 50;
+  heaterBed->pid.difGain = 0;
+  HeaterProxy_Start(heaterExtr);
+  HeaterProxy_Start(heaterBed);
 
   // Configure stepper motor proxies
-  StepperProxy_t* stepX = Stepper_ProxyCreate(NULL);
-  StepperProxy_t* stepY = Stepper_ProxyCreate(NULL);
-  StepperProxy_t* stepZ = Stepper_ProxyCreate(NULL);
-  StepperProxy_t* stepE = Stepper_ProxyCreate(NULL);
+  stepX = Stepper_ProxyCreate(NULL);
+  stepY = Stepper_ProxyCreate(NULL);
+  stepZ = Stepper_ProxyCreate(NULL);
+  stepE = Stepper_ProxyCreate(NULL);
   stepX->Axis = STEPPER_AXIS_X;
   stepX->StepsPerRev=800;
   stepX->Microsteps=1;
@@ -364,28 +430,28 @@ int main(void) {
   StepperProxy_Configure(stepE);
 
   // Configure endstop proxies
-  EndstopProxy_t* endstopX = EndstopProxy_Create(NULL);
-  EndstopProxy_t* endstopY = EndstopProxy_Create(NULL);
-  EndstopProxy_t* endstopZ = EndstopProxy_Create(NULL);
+  endstopX = EndstopProxy_Create(NULL);
+  endstopY = EndstopProxy_Create(NULL);
+  endstopZ = EndstopProxy_Create(NULL);
   EndstopProxy_Configure(endstopX, LINE_XMIN);
   EndstopProxy_Configure(endstopY, LINE_YMIN);
   EndstopProxy_Configure(endstopZ, LINE_ZMIN);
 
   // Configure stepper manager
-  StepperManager_t* stepmanager = StepperManager_Create(NULL);
+  stepmanager = StepperManager_Create(NULL);
   StepperManager_SetStepper(stepmanager, stepX, 0);
   StepperManager_SetStepper(stepmanager, stepY, 1);
   StepperManager_SetStepper(stepmanager, stepZ, 2);
   StepperManager_SetStepper(stepmanager, stepE, 3);
 
   // Configure movement queue
-  MovementQueue_t* queue = MovementQueue_Create(NULL);
+  queue = MovementQueue_Create(NULL);
   StepperManager_SetItsMovementQueue(stepmanager, queue);
 
 
-  //guiSetStepperManager(stepmanager);
+  guiConfigure(stepmanager, heaterExtr, heaterBed);
   guiStart();
-  gcode_init(stepmanager, queue);
+  gcode_init(stepmanager, queue, heaterExtr, heaterBed);
 
   // Wait for SDU1 state change to USB_ACTIVE
   while(SDU1.config->usbp->state != USB_ACTIVE)

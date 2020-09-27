@@ -6,7 +6,6 @@
  */
 
 #include "gui.h"
-#include "heater.h"
 #include "coord.h"
 
 void guiInit()
@@ -41,10 +40,16 @@ void guiInit()
 
   guibInitialised = TRUE;
   stpManager = NULL;
+  htrExtruder = NULL;
+  htrBed = NULL;
 }
-void guiSetStepperManager(StepperManager_t* stpman)
+
+void guiConfigure(StepperManager_t* stpman, HeaterProxy_t* extruder,
+                  HeaterProxy_t* bed)
 {
   stpManager = stpman;
+  htrExtruder = extruder;
+  htrBed = bed;
 }
 
 void guiProgressBarIncrement(void)
@@ -899,7 +904,7 @@ static void guiTemperatureMenuCreate(void)
 	wi.g.y = 192;
 	wi.g.parent = guiTemperatureMenuHandle;
 	wi.text = "0 deg";
-	guiTemperatureMenuHeatbedCurrentTempValue = DialWidgetCreate(NULL, &wi);
+	guiTemperatureMenuHeatbedCurrentTempValue = gwinLabelCreate(NULL, &wi);
 
 	//Add set extruder temp value
 	gwinWidgetClearInit(&wi);
@@ -910,7 +915,7 @@ static void guiTemperatureMenuCreate(void)
 	wi.g.y = 192;
 	wi.g.parent = guiTemperatureMenuHandle;
 	wi.text = "0 deg";
-	guiTemperatureMenuHeatbedSetTempValue = DialWidgetCreate(NULL, &wi);
+	guiTemperatureMenuHeatbedSetTempValue = gwinLabelCreate(NULL, &wi);
 
 	// Add + heatbed temperature button
 	gwinWidgetClearInit(&wi);
@@ -1089,22 +1094,22 @@ threadreturn_t guiThread(void* param)
 
         // Heater temperatures
         gwinSetText(guiTemperatureMenuExtruderCurrentTempValue,
-                    itoa(heaterGetTemp(&Heater1), buf, 10), TRUE);
+                    itoa(HeaterProxy_GetRealTemp(htrExtruder), buf, 10), TRUE);
         gwinSetText(guiTemperatureMenuExtruderSetTempValue,
-                    itoa(heaterGetDesiredTemp(&Heater1), buf, 10), TRUE);
+                    itoa(HeaterProxy_GetDesiredTemp(htrExtruder), buf, 10), TRUE);
         gwinSetText(guiTemperatureMenuHeatbedCurrentTempValue,
-                    itoa(heaterGetTemp(&Heater2), buf, 10), TRUE);
+                    itoa(HeaterProxy_GetRealTemp(htrBed), buf, 10), TRUE);
         gwinSetText(guiTemperatureMenuHeatbedSetTempValue,
-                    itoa(heaterGetDesiredTemp(&Heater2), buf, 10), TRUE);
+                    itoa(HeaterProxy_GetDesiredTemp(htrBed), buf, 10), TRUE);
         // Check inc dec temperature buttons
         if(gwinButtonIsPressed(guiTemperatureMenuExtruderSetTempUpButton)==TRUE)
-          heaterIncDesiredTemp(&Heater1);
+          HeaterProxy_IncSetTemp(htrExtruder);
         if(gwinButtonIsPressed(guiTemperatureMenuExtruderSetTempDownButton)==TRUE)
-          heaterDecDesiredTemp(&Heater1);
+          HeaterProxy_DecSetTemp(htrExtruder);
         if(gwinButtonIsPressed(guiTemperatureMenuHeatbedSetTempUpButton)==TRUE)
-          heaterIncDesiredTemp(&Heater2);
+          HeaterProxy_IncSetTemp(htrBed);
         if(gwinButtonIsPressed(guiTemperatureMenuHeatbedSetTempDownButton)==TRUE)
-          heaterDecDesiredTemp(&Heater2);
+          HeaterProxy_DecSetTemp(htrBed);
         gfxSleepMilliseconds(100);
 	}
 

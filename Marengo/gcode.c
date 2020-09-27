@@ -3,10 +3,10 @@
 #include <string.h>
 #include "console.h"
 #include "stdlib.h"
-#include "heater.h"
 #include "coord.h"
 
-void gcode_init(StepperManager_t* stpman, MovementQueue_t* movque)
+void gcode_init(StepperManager_t* stpman, MovementQueue_t* movque,
+                HeaterProxy_t* extruder, HeaterProxy_t* bed)
 {
   g_bSeenStart = 0;
   g_linenumber = 0;
@@ -50,6 +50,8 @@ void gcode_init(StepperManager_t* stpman, MovementQueue_t* movque)
 
   stpManager = stpman;
   stpMovementQueue = movque;
+  htrExtruder = extruder;
+  htrBed = bed;
   com.lastcoord = stpCoordF_Zero();
 }
 
@@ -511,12 +513,14 @@ int gcodeParseCommand(gcommand_t cmd)
     }
     break;
   case NON_MODAL_GET_EXTR_TEMP: //M105
-    consPrintf("ok T:%d B:%d"CONSOLE_NEWLINE_STR, heaterGetTemp(&Heater1), heaterGetTemp(&Heater2));
+    consPrintf("ok T:%d B:%d"CONSOLE_NEWLINE_STR, \
+               HeaterProxy_GetRealTemp(htrExtruder), \
+               HeaterProxy_GetRealTemp(htrBed));
     return 0;
     break;
   case NON_MODAL_SET_EXTR_TEMP: // M104
     if(cmd.params_present_misc & PARAM_MISC_S)
-      heaterSetTemp(&Heater1, cmd.s.character);
+      HeaterProxy_SetTemp(htrExtruder, cmd.s.character);
     else{
       consPrintf("error param s not present"CONSOLE_NEWLINE_STR);
       return 1;
@@ -524,27 +528,27 @@ int gcodeParseCommand(gcommand_t cmd)
     break;
   case NON_MODAL_WAIT_BED_TARGET_TEMP: // M190
     if(cmd.params_present_misc & PARAM_MISC_S)
-      heaterSetTemp(&Heater2, cmd.s.character);
+      HeaterProxy_SetTemp(htrBed, cmd.s.character);
     else{
       consPrintf("error param s not present"CONSOLE_NEWLINE_STR);
       return 1;
     }
-    while(heaterGetTemp(&Heater2)<cmd.s.character)
+    while(HeaterProxy_GetRealTemp(htrBed)<cmd.s.character)
       chThdSleepMilliseconds(1000);
     break;
   case NON_MODAL_SET_EXTR_TEMP_WAIT: // M109
     if(cmd.params_present_misc & PARAM_MISC_S)
-      heaterSetTemp(&Heater1, cmd.s.character);
+      HeaterProxy_SetTemp(htrExtruder, cmd.s.character);
     else{
       consPrintf("error param s not present"CONSOLE_NEWLINE_STR);
       return 1;
     }
-    while(heaterGetTemp(&Heater1)<cmd.s.character)
+    while(HeaterProxy_GetRealTemp(htrExtruder)<cmd.s.character)
       chThdSleepMilliseconds(1000);
     break;
   case NON_MODAL_SET_BED_TEMP_FAST: // M140
     if(cmd.params_present_misc & PARAM_MISC_S)
-      heaterSetTemp(&Heater2, cmd.s.character);
+      HeaterProxy_SetTemp(htrBed, cmd.s.character);
     else{
       consPrintf("error param s not present"CONSOLE_NEWLINE_STR);
       return 1;
