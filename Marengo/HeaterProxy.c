@@ -182,7 +182,7 @@ static int32_t HeaterProxy_ADC2Temp(HeaterProxy_t* const me, uint32_t adc)
 {
   int32_t i=1;
   // Find the closest point
-  while(i<me->lookupTableSize)
+  while(i<me->lookupTableSize-1)
   {
     if(*(me->lookupTable+2*i)>(int32_t)adc)
       break;

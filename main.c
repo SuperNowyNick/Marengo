@@ -323,7 +323,7 @@ int main(void) {
   HeaterProxy_Init(heaterExtr);
   heaterExtr->name = "Extruder";
   heaterExtr->lookupTable = Heater1LookupTable;
-  heaterExtr->lookupTableSize = sizeof(Heater1LookupTable)/2;
+  heaterExtr->lookupTableSize = 22;
   heaterExtr->maxtemp=285;
   heaterExtr->mintemp=5;
   heaterExtr->pwm.line = LINE_EXTRUDERCTRL;
@@ -347,7 +347,7 @@ int main(void) {
   HeaterProxy_Init(heaterBed);
   heaterBed->name = "Bed";
   heaterBed->lookupTable = Heater1LookupTable;
-  heaterBed->lookupTableSize = sizeof(Heater1LookupTable)/2;
+  heaterBed->lookupTableSize = 22;
   heaterBed->maxtemp=285;
   heaterBed->mintemp=5;
   heaterBed->pwm.line = LINE_HEATBEDCTRL;
